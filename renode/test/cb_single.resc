@@ -1,0 +1,58 @@
+# Single CANBoard on a CAN hub with the SLCAN bridge on 127.0.0.1:7787 (CANBoard test ports: monitor 1244, bridge 7787).
+# Run from the CoffeeDingoSim repo root with renode/test/cb_start.sh, which renders the <REPO>/<FW> placeholders
+# below into renode/test/gen/cb_single.resc (<FW> = $SIM_FW_DIR, default ../CoffeeDingoFW/build) and tracks the PID.
+# By hand: replace <REPO> (absolute path of this repo) and <FW> (firmware build dir), or set the variables
+# BEFORE the script:  -e "$elf=@/abs/path/canboard_v2.elf; $nv=@/abs/path/renode/test/nv/CB-01.bin"
+#   <renode> --disable-gui --plain -P 1244 renode/test/cb_single.resc
+# then `start` on the monitor.
+# The config sector (2 KB at 0x0800F800) is file-backed in $nv: delete the file for a factory-fresh board.
+# The load bank (canboard_v2.repl) listens on :7800; if another Renode already holds that port the bank logs
+# "cannot listen" and keeps running (monitor commands such as `sysbus.loadBank SetAnalog 1 1500` still work).
+
+$elf ?= @<FW>/canboard_v2.elf
+$nv ?= @<REPO>/renode/test/nv/CB-01.bin
+
+include @renode/models/load_models.py
+# the anchor is resolved against the cwd (the repo root)
+coffeesim_load "renode/platforms/canboard_v2.repl" "CortexMDwt.cs" "ChibiOsFix.cs" "STM32F3_DMA.cs" "STM32F3_ADCv3.cs" "STM32F3_FlashController.cs" "SlcanTcpBridge.cs" "ProfetLoadBank.cs"
+
+emulation CreateCANHub "vehicle"
+
+mach create "CB-01"
+machine LoadPlatformDescription @renode/platforms/canboard_v2.repl
+machine LoadPlatformDescriptionFromString "slcanBridge: CAN.SlcanTcpBridge @ sysbus 0x5FFF0000 { port: 7787 }"
+
+sysbus LoadELF $elf
+sysbus.chibiosFix Install
+cpu VectorTableOffset 0x08004000
+
+# config sector image: loaded if the file exists, else the sector reads erased (0xFF) -> firmware writes defaults
+sysbus.flash_controller Filename $nv
+
+# factory calibration words (TS_CAL1 30 C, VREFINT_CAL, TS_CAL2 110 C) — same values server/renode.js uses
+sysbus WriteWord 0x1FFFF7B8 943
+sysbus WriteWord 0x1FFFF7BA 1500
+sysbus WriteWord 0x1FFFF7C2 1194
+
+# analog inputs are fed by the load bank (AI terminal mV -> pin counts, TEMP raw 943 = 30 C).
+# Without the bank: sysbus.adc1 SetRaw <IN> <counts>   (AI1..4 = adc1 IN1..4, TEMP = adc1 IN16, AI5 = adc2 IN1)
+
+# `machine Reset` wipes the ELF (renode/README.md #10) and the ELF load zero-fills past .bss LMA into the
+# config sector, so the reset macro reloads the ELF, the ChibiOS fix, VTOR and then the nv image.
+macro reset
+"""
+    sysbus LoadELF $elf
+    sysbus.chibiosFix Install
+    cpu VectorTableOffset 0x08004000
+    sysbus.flash_controller Load
+    sysbus WriteWord 0x1FFFF7B8 943
+    sysbus WriteWord 0x1FFFF7BA 1500
+    sysbus WriteWord 0x1FFFF7C2 1194
+"""
+
+connector Connect sysbus.can1 vehicle
+connector Connect sysbus.slcanBridge vehicle
+connector Connect sysbus.loadBank vehicle
+
+logLevel 2
+logLevel 3 sysbus

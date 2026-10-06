@@ -1,0 +1,53 @@
+[
+  {
+    "id": "seat_heater", "group": "Heaters", "name": "Seat heater", "family": "heater", "icon": "seat-heat",
+    "keywords": ["seat", "heat", "heating", "heated", "heater", "seat heat"],
+    "keywordPresets": { "seat": "50 W", "seat heat": "50 W", "heat": "50 W", "heating": "50 W", "heated": "50 W", "heater": "50 W" },
+    "defaults": { "kHot": 0.75, "tauMs": 120000, "vExp": 1, "coolDownMs": 60000 },
+    "presets": [ { "name": "50 W", "W": 50 }, { "name": "90 W", "W": 90 } ],
+    "pwm": { "onPhaseExp": 0.1 },
+    "source": "carbon-fibre / wire pad: resistance rises ~33 % warm, thermal tau ~2 min"
+  },
+  {
+    "id": "rear_defrost", "group": "Heaters", "name": "Rear-window defrost", "family": "heater", "icon": "defrost",
+    "keywords": ["defrost", "demist", "defog", "rear window", "hrw", "rear screen", "heated rear"],
+    "keywordPresets": { "defrost": "150 W", "demist": "150 W", "defog": "150 W", "rear window": "150 W", "hrw": "150 W", "rear screen": "150 W", "heated rear": "150 W" },
+    "defaults": { "kHot": 0.75, "tauMs": 180000, "vExp": 1, "coolDownMs": 60000 },
+    "presets": [ { "name": "150 W", "W": 150 }, { "name": "250 W", "W": 250 } ],
+    "pwm": { "onPhaseExp": 0.1 },
+    "source": "printed silver grid on glass: large thermal mass, tau ~3 min"
+  },
+  {
+    "id": "small_heater", "group": "Heaters", "name": "Mirror / grip / nozzle heater", "family": "heater", "icon": "heat",
+    "keywords": ["mirror", "grip", "nozzle", "heated mirror", "heated grip", "washer jet heater"],
+    "defaults": { "kHot": 0.75, "tauMs": 60000, "vExp": 1, "coolDownMs": 60000 },
+    "presets": [ { "name": "20 W", "W": 20 } ],
+    "pwm": { "onPhaseExp": 0.1 },
+    "source": "small foil heaters, tau ~1 min"
+  },
+  {
+    "id": "ptc_heater", "group": "Heaters", "name": "PTC cabin heater", "family": "ptc", "icon": "heat",
+    "keywords": ["ptc", "cabin heater", "auxiliary heater", "aux heater"],
+    "defaults": { "kCold": 2.5, "tauMs": 20000, "vExp": 1, "coolDownMs": 60000 },
+    "presets": [ { "name": "300 W", "W": 300 }, { "name": "600 W", "W": 600 } ],
+    "pwm": { "onPhaseExp": 0.1 },
+    "source": "PTC ceramic draws ~2.5x cold and self-limits as it reaches its Curie point over ~1 min"
+  },
+  {
+    "id": "glow_plugs", "group": "Heaters", "name": "Glow plugs", "family": "glow", "icon": "glow",
+    "keywords": ["glow", "glow plug", "preheat"],
+    "keywordPresets": { "glow": "4 plugs 400 W", "glow plug": "1 plug 100 W", "preheat": "4 plugs 400 W" },
+    "defaults": { "kCold": 2, "tauMs": 3000, "vExp": 1, "coolDownMs": 60000 },
+    "presets": [ { "name": "1 plug 100 W", "W": 100 }, { "name": "4 plugs 400 W", "W": 400 } ],
+    "pwm": { "onPhaseExp": 0.1 },
+    "source": "metal glow plug: ~2x cold current, sheath at temperature after ~3 s"
+  },
+  {
+    "id": "lambda_heater", "group": "Heaters", "name": "Lambda sensor heater", "family": "ptc", "icon": "heat",
+    "keywords": ["lambda", "o2 sensor", "oxygen", "o2 heater", "wideband"],
+    "defaults": { "kCold": 2.5, "tauMs": 10000, "vExp": 1, "coolDownMs": 60000 },
+    "presets": [ { "name": "12 W", "W": 12 } ],
+    "pwm": { "onPhaseExp": 0.1 },
+    "source": "zirconia sensor heater: PTC-like, ~2.5 A cold falling to ~1 A warm over 30 s"
+  }
+]

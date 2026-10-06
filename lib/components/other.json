@@ -1,0 +1,18 @@
+[
+  {
+    "id": "generic_resistive", "group": "Other", "name": "Generic resistive", "family": "resistive", "icon": "resistor",
+    "keywords": [],
+    "defaults": { "vExp": 1, "coolDownMs": 0 },
+    "presets": [ { "name": "10 W", "W": 10 }, { "name": "25 W", "W": 25 }, { "name": "50 W", "W": 50 }, { "name": "100 W", "W": 100 } ],
+    "pwm": { "onPhaseExp": 0 },
+    "source": "fallback for unmatched output names (populate sizes it at 60 % of the output's currentLimit and flags a guess)"
+  },
+  {
+    "id": "custom_table", "group": "Other", "name": "Custom curve (CSV)", "family": "table", "icon": "table",
+    "keywords": [],
+    "defaults": { "vExp": 0, "coolDownMs": 1000 },
+    "presets": [ { "name": "example 55 W bulb", "A": 4, "params": { "points": [[0, 36], [10, 24], [30, 10], [60, 5], [100, 4]] } } ],
+    "pwm": { "onPhaseExp": 0 },
+    "source": "user-supplied t_ms,A pairs (bench log); linear interpolation, last value held; ratedA = last A unless given"
+  }
+]

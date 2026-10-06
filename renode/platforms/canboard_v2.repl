@@ -1,0 +1,228 @@
+// CANBoard v2 — STM32F303K8 (Cortex-M4F): HSE 8 MHz x9 PLL -> SYSCLK/HCLK 72 MHz, APB1 /2 = 36 MHz, APB2 /1 = 72 MHz
+// -> every timer clock 72 MHz (TIM2/TIM3 on APB1 x2, TIM15/16/17 on APB2). ChibiOS ST = TIM2 (tick-less 10 kHz).
+// Composed from stock Renode 1.16.1 pieces (no stm32f3 repl ships with Renode) + CoffeeDingoSim models.
+// Requires these models to be compiled first (the .resc does it):
+//   include @renode/models/CortexMDwt.cs                DWT CYCCNT for ChibiOS polled delays (R1)
+//   include @renode/models/STM32F3_ADCv3.cs             ADC1/ADC2 (ADCv3 sequencer, DMA request GPIO)
+//   include @renode/models/STM32F3_DMA.cs               DMA1 with circular mode (master STM32G0DMA)
+//   include @renode/models/STM32F3_FlashController.cs   FLASHv1 controller (KEYR/PER/STRT/PG), file-backed config sector
+// Address map: RM0316 (STM32F303x6/8). IRQ numbers: F303 vector table (ChibiOS STM32F3xx/stm32_isr.h).
+
+// ---------------- core ----------------
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m4f"
+    nvic: nvic
+    PerformanceInMips: 72
+
+nvic: IRQControllers.NVIC @ sysbus 0xE000E000
+    priorityMask: 0xF0
+    systickFrequency: 72000000
+    IRQ -> cpu@0
+
+// ---------------- memory ----------------
+// 64 KB flash: OpenBLT sectors 0-7 (not loaded), app 0x08004000.., config sector 31 at 0x0800F800 (2 KB)
+flash: Memory.MappedMemory @ sysbus 0x08000000
+    size: 0x10000
+
+// FLASH interface (F1-style FLASHv1). Filename (2 KB config-sector image) is set by the .resc.
+flash_controller: MTD.STM32F3_FlashController @ sysbus 0x40022000
+    flash: flash
+
+sram: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x3000                  // 12 KB
+
+ccm: Memory.MappedMemory @ sysbus 0x10000000
+    size: 0x1000                  // 4 KB CCM (stConfigTemp, bootloader magic at 0x10000FFC)
+
+// system memory + option bytes page; factory words written by the .resc:
+//   TS_CAL1 (30 C) 0x1FFFF7B8, VREFINT_CAL 0x1FFFF7BA, TS_CAL2 (110 C) 0x1FFFF7C2 (boards/cortex-m3/mcu_utils.h)
+sysmem: Memory.MappedMemory @ sysbus 0x1FFFF000
+    size: 0x1000
+
+// ---------------- system ----------------
+// RCC: register file with ready bits mirroring their enable bits (HSI/HSE/PLL/LSI/LSE) and SWS = SW.
+// (Renode's STM32F0_RCC is close but tags CSR.LSIRDY -> ChibiOS would wait for the LSI forever.)
+rcc: Python.PythonPeripheral @ sysbus 0x40021000
+    size: 0x400
+    initable: true
+    script: '''
+if request.IsInit:
+    regs = {0x00: 0x00000083, 0x20: 0x00000018, 0x24: 0x0C000000}
+elif request.IsWrite:
+    regs[request.Offset] = request.Value
+elif request.IsRead:
+    v = regs.get(request.Offset, 0)
+    if request.Offset == 0x00:
+        v = (v & ~((1 << 1) | (1 << 17) | (1 << 25))) | ((v & 1) << 1) | ((v & (1 << 16)) << 1) | ((v & (1 << 24)) << 1)
+    elif request.Offset == 0x04:
+        v = (v & ~0xC) | ((v & 0x3) << 2)
+    elif request.Offset == 0x20 or request.Offset == 0x24:
+        v = (v & ~2) | ((v & 1) << 1)
+    request.Value = v
+'''
+
+pwr: Miscellaneous.STM32_PWR @ sysbus 0x40007000
+
+// Plain register files (read back what was written): SYSCFG and the ADC1/2 common block (CCR at +0x08)
+syscfg: Python.PythonPeripheral @ sysbus 0x40010000
+    size: 0x400
+    initable: true
+    script: '''
+if request.IsInit:
+    regs = {}
+elif request.IsWrite:
+    regs[request.Offset] = request.Value
+elif request.IsRead:
+    request.Value = regs.get(request.Offset, 0)
+'''
+
+adc12_common: Python.PythonPeripheral @ sysbus 0x50000300
+    size: 0x100
+    initable: true
+    script: '''
+if request.IsInit:
+    regs = {}
+elif request.IsWrite:
+    regs[request.Offset] = request.Value
+elif request.IsRead:
+    request.Value = regs.get(request.Offset, 0)
+'''
+
+exti: IRQControllers.STM32F4_EXTI @ sysbus 0x40010400
+    numberOfOutputLines: 23
+    [0-4] -> nvic@[6-10]
+    [5-9] -> nvicInput23@[0-4]
+    [10-15] -> nvicInput40@[0-5]
+
+nvicInput23: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 5
+    -> nvic@23
+
+nvicInput40: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 6
+    -> nvic@40
+
+// ---------------- GPIO (A, B, F on the K8 package; AHB2) ----------------
+// DI1 PA5  DI2 PA6  DI3 PA7  DI4 PB0  DI5 PB1  DI6 PA8  DI7 PA9  DI8 PA10      (inputs)
+// DO1 PA15 DO2 PB3  DO3 PB4  DO4 PB5                                           (outputs, software PWM)
+// AI1 PA0 (ADC1_IN1)  AI2 PA1 (ADC1_IN2)  AI3 PA2 (ADC1_IN3)  AI4 PA3 (ADC1_IN4)  AI5 PA4 (ADC2_IN1)
+// CAN RX PA11 / TX PA12, CAN_ID_1 PB7, CAN_ID_2 PB6
+gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x48000000, +0x400>
+    modeResetValue: 0xA8000000
+    outputSpeedResetValue: 0x0C000000
+    pullUpPullDownResetValue: 0x64000000
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x48000400, +0x400>
+    modeResetValue: 0x00000280
+    outputSpeedResetValue: 0x000000C0
+    pullUpPullDownResetValue: 0x00000100
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortF: GPIOPort.STM32_GPIOPort @ sysbus <0x48001400, +0x400>
+    numberOfAFs: 16
+
+// ---------------- DMA1 (7 channels, F0/F1/F3/G0 channel layout) ----------------
+// ADC1 -> channel 1, ADC2 -> channel 2 (mcuconf STM32_ADC_ADCx_DMA_STREAM); models/STM32F3_DMA.cs (stock CCR.EN reads 0 and RMW disables the channel)
+dma1: DMA.STM32F3_DMA @ sysbus 0x40020000
+    numberOfChannels: 7
+    [0-6] -> nvic@[11-17]
+
+// ---------------- ADC1 / ADC2 (ADC1_2 shared IRQ 18) ----------------
+// AI1..AI4 = ADC1 inputs IN1..IN4, temp sensor = ADC1 IN16, AI5 = ADC2 IN1.
+// models/STM32F3_ADCv3.cs, not the stock Analog.STM32F3_ADC (its sequencer stops at SQ4 -> crash on the 5-entry scan).
+// Set inputs with `sysbus.adc1 SetMillivolts <IN> <pin mV>` / `SetRaw <IN> <counts>` (held values).
+// Each ADC instance is 0x100 wide on the F303; the common block (0x50000300) is the adc12_common stub above.
+adc1: Analog.STM32F3_ADCv3 @ sysbus <0x50000000, +0x100>
+    referenceVoltage: 3.3
+    DMARequest -> dma1@1
+    IRQ -> adcIrq@0
+
+adc2: Analog.STM32F3_ADCv3 @ sysbus <0x50000100, +0x100>
+    referenceVoltage: 3.3
+    DMARequest -> dma1@2
+    IRQ -> adcIrq@1
+
+adcIrq: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 2
+    -> nvic@18
+
+// ---------------- CAN (bxCAN) ----------------
+// F303 vectors: 19 USB_HP_CAN_TX, 20 USB_LP_CAN_RX0, 21 CAN_RX1, 22 CAN_SCE
+can1: CAN.STMCAN @ sysbus <0x40006400, +0x400>
+    [0-3] -> nvic@[19-22]
+
+// ---------------- timers: every timer clock 72 MHz ----------------
+// TIM2 = ChibiOS system tick. DO PWM timebases: DO1 TIM3, DO2 TIM15, DO3 TIM16, DO4 TIM17 (port_pwm.h)
+timer2: Timers.STM32_Timer @ sysbus 0x40000000
+    -> nvic@28
+    frequency: 72000000
+    initialLimit: 0xFFFFFFFF
+
+timer3: Timers.STM32_Timer @ sysbus 0x40000400
+    -> nvic@29
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer15: Timers.STM32_Timer @ sysbus 0x40014000
+    -> nvic@24
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer16: Timers.STM32_Timer @ sysbus 0x40014400
+    -> nvic@25
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer17: Timers.STM32_Timer @ sysbus 0x40014800
+    -> nvic@26
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+// ---------------- load bank (renode/models/ProfetLoadBank.cs, renode/BANK.md) ----------------
+// Requires ProfetLoadBank.cs compiled ONCE per Renode process (load_models.py does it).
+// The bank feeds adc1 IN1..IN4 (AI1..AI4) + IN16 (TEMP) and adc2 IN1 (AI5) through STM32F3_ADCv3.FeedSample
+// (raw counts at the pin; the bank applies the 4k7/10k divider to the terminal mV itself).
+loadBank: Miscellaneous.ProfetLoadBank @ sysbus 0x5FFE0000
+    board: "canboard"
+    adc: adc1
+    adc2: adc2
+    port: 7800
+
+// DO1..DO4 watched (PA15, PB3, PB4, PB5). A pin connection replaces that pin's `-> exti@n` entry.
+gpioPortA:
+    15 -> loadBank@0     // DO1 PA15
+gpioPortB:
+    3  -> loadBank@1     // DO2 PB3
+    4  -> loadBank@2     // DO3 PB4
+    5  -> loadBank@3     // DO4 PB5
+
+// bank outputs -> port inputs: DI1..DI8 = PA5 PA6 PA7 PB0 PB1 PA8 PA9 PA10, CAN RX wake PA11
+loadBank:
+    0 -> gpioPortA@5
+    1 -> gpioPortA@6
+    2 -> gpioPortA@7
+    3 -> gpioPortB@0
+    4 -> gpioPortB@1
+    5 -> gpioPortA@8
+    6 -> gpioPortA@9
+    7 -> gpioPortA@10
+    8 -> gpioPortA@11
+
+// ---------------- debug blocks ----------------
+dwt: Miscellaneous.CortexMDwt @ sysbus 0xE0001000
+    cpu: cpu
+
+// DBGMCU IDCODE: STM32F303x6/8 DEV_ID 0x439, REV_ID 0x1001
+dbgmcu: Python.PythonPeripheral @ sysbus 0xE0042000
+    size: 0x10
+    initable: false
+    script: '''
+if request.IsRead:
+    request.Value = 0x10016439 if request.Offset == 0 else 0
+'''
+
+// ChibiOS RETTOBASE workaround (R1, see ChibiOsFix.cs); call `sysbus.chibiosFix Install` after LoadELF
+chibiosFix: Miscellaneous.ChibiOsFix @ sysbus 0x5FFF1000

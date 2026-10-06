@@ -1,0 +1,44 @@
+[
+  {
+    "id": "relay_coil", "group": "Coils", "name": "Relay coil", "family": "coil", "icon": "relay",
+    "keywords": ["relay", "trigger", "relay trigger"],
+    "defaults": { "tauMs": 5, "vExp": 1, "coolDownMs": 50 },
+    "presets": [ { "name": "1.5 W", "W": 1.5 } ],
+    "pwm": { "onPhaseExp": -1 },
+    "source": "mini ISO relay: ~90 ohm coil, L/R ~5 ms; under PWM the inductor averages, on-phase ~ duty x steady"
+  },
+  {
+    "id": "solenoid_valve", "group": "Coils", "name": "Solenoid valve / purge / boost control", "family": "coil", "icon": "valve",
+    "keywords": ["solenoid", "valve", "purge", "boost", "vvt", "evap", "bypass", "idle valve"],
+    "keywordPresets": { "purge": "10 W", "boost": "20 W", "vvt": "20 W", "evap": "10 W", "solenoid": "10 W", "valve": "10 W" },
+    "defaults": { "tauMs": 15, "vExp": 1, "coolDownMs": 50 },
+    "presets": [ { "name": "10 W", "W": 10 }, { "name": "20 W", "W": 20 } ],
+    "pwm": { "onPhaseExp": -1 },
+    "source": "larger coil, L/R ~15 ms; boost-control valves are PWM-driven at 30 Hz"
+  },
+  {
+    "id": "ac_clutch", "group": "Coils", "name": "A/C compressor clutch", "family": "coil", "icon": "clutch",
+    "keywords": ["clutch", "a/c clutch", "ac clutch", "a/c", "aircon"],
+    "defaults": { "tauMs": 30, "vExp": 1, "coolDownMs": 50 },
+    "presets": [ { "name": "45 W", "W": 45 } ],
+    "pwm": { "onPhaseExp": -1 },
+    "source": "electromagnetic clutch coil ~3.5 A, L/R ~30 ms"
+  },
+  {
+    "id": "starter_solenoid", "group": "Coils", "name": "Starter solenoid", "family": "solenoid2", "icon": "starter",
+    "keywords": ["starter", "sol", "crank", "start relay"],
+    "defaults": { "kPull": 4.375, "pullMs": 80, "vExp": 1, "coolDownMs": 50 },
+    "presets": [ { "name": "pull 35 A / hold 8 A", "A": 8 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "pull-in + hold windings in parallel (~35 A) until the pinion engages after ~80 ms, then hold winding only (~8 A)"
+  },
+  {
+    "id": "horn", "group": "Coils", "name": "Horn", "family": "resistive", "icon": "horn",
+    "keywords": ["horn", "klaxon", "air horn"],
+    "keywordPresets": { "horn": "40 W", "air horn": "2x40 W" },
+    "defaults": { "vExp": 1, "coolDownMs": 0 },
+    "presets": [ { "name": "40 W", "W": 40 }, { "name": "2x40 W", "W": 80 } ],
+    "ripple": { "hz": 400, "pct": 25 },
+    "source": "electromagnetic horn: a self-interrupting coil, so the current buzzes ±25 % at the diaphragm frequency"
+  }
+]

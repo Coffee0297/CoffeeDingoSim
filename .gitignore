@@ -1,0 +1,15 @@
+node_modules/
+cache/
+# only the shipped example scene is tracked; your own vehicles stay local
+scenes/*
+!scenes/example/
+scenes/*/nv/
+scenes/*/runs/*
+!scenes/*/runs/golden.run.json
+*.log
+dist/
+.DS_Store
+renode/test/e2e_out.txt
+renode/test/e2e_result.json
+renode/test/gen/
+renode/test/*.pid

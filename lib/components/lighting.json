@@ -1,0 +1,78 @@
+[
+  {
+    "id": "halogen_headlight", "group": "Lighting", "name": "Halogen headlight", "family": "filament", "icon": "bulb",
+    "keywords": ["low beam", "high beam", "head", "spot", "fog", "driving", "aux", "work", "main beam", "dipped"],
+    "keywordPresets": { "low beam": "H4 low 55 W", "dipped": "H4 low 55 W", "high beam": "H4 high 60 W", "main beam": "H4 high 60 W",
+                        "head": "H4 low 55 W", "fog": "H3 55 W", "spot": "100 W aux spot", "driving": "H7 55 W", "aux": "H7 55 W", "work": "H3 55 W" },
+    "ledVariant": "led_light_bar",
+    "defaults": { "kCold": 5, "tauMs": "5 + 0.25*W", "vExp": 0.55, "coolDownMs": 1500 },
+    "presets": [ { "name": "H1 55 W", "W": 55 }, { "name": "H3 55 W", "W": 55 }, { "name": "H4 low 55 W", "W": 55 }, { "name": "H4 high 60 W", "W": 60 },
+                 { "name": "H7 55 W", "W": 55 }, { "name": "H11 55 W", "W": 55 }, { "name": "100 W aux spot", "W": 100 } ],
+    "pwm": { "onPhaseExp": 0.45 },
+    "source": "tungsten cold/hot resistance ~1:10; tau from bench lore (10 ms + 0.6 ms/W)"
+  },
+  {
+    "id": "halogen_signal_bulb", "group": "Lighting", "name": "Halogen signal bulb", "family": "filament", "icon": "bulb-small",
+    "keywords": ["position", "park", "tail", "plate", "licen", "marker", "sidemarker", "interior", "dome", "courtesy", "brake", "stop", "indicator", "turn", "blink", "hazard", "reverse", "number plate"],
+    "keywordPresets": { "position": "W5W 5 W", "park": "W5W 5 W", "tail": "R5W 5 W", "plate": "licence 5 W", "number plate": "licence 5 W", "licen": "licence 5 W",
+                        "marker": "W5W 5 W", "sidemarker": "W5W 5 W", "interior": "C5W 5 W", "dome": "C5W 5 W", "courtesy": "C5W 5 W",
+                        "brake": "P21W 21 W", "stop": "P21W 21 W", "indicator": "PY21W 21 W", "turn": "PY21W 21 W", "blink": "PY21W 21 W", "hazard": "PY21W 21 W", "reverse": "P21W 21 W" },
+    "ledVariant": "led_signal_lamp",
+    "defaults": { "kCold": 5, "tauMs": "5 + 0.25*W", "vExp": 0.55, "coolDownMs": 1500 },
+    "presets": [ { "name": "P21W 21 W", "W": 21 }, { "name": "P21/5W 21+5 W", "W": 26 }, { "name": "PY21W 21 W", "W": 21 }, { "name": "W5W 5 W", "W": 5 },
+                 { "name": "R5W 5 W", "W": 5 }, { "name": "C5W 5 W", "W": 5 }, { "name": "H21W 21 W", "W": 21 }, { "name": "licence 5 W", "W": 5 } ],
+    "pwm": { "onPhaseExp": 0.45 },
+    "source": "same tungsten physics as headlights; small filaments warm faster (short tau)"
+  },
+  {
+    "id": "led_light_bar", "group": "Lighting", "name": "LED pod / light bar", "family": "led", "icon": "led-bar",
+    "keywords": ["led", "bar", "light bar", "pod", "drl"],
+    "keywordPresets": { "drl": "10 W", "pod": "20 W", "bar": "72 W", "light bar": "72 W" },
+    "defaults": { "kSpike": 3, "spikeMs": 1, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "10 W", "W": 10 }, { "name": "20 W", "W": 20 }, { "name": "40 W", "W": 40 }, { "name": "72 W", "W": 72 },
+                 { "name": "126 W", "W": 126 }, { "name": "180 W", "W": 180 }, { "name": "300 W", "W": 300 } ],
+    "pwm": { "onPhaseExp": 0 },
+    "source": "constant-power driver (vExp -1); input capacitor charge spike ~6x for 1 ms; re-spikes after > 20 ms off"
+  },
+  {
+    "id": "led_signal_lamp", "group": "Lighting", "name": "LED signal lamp", "family": "led", "icon": "led-small",
+    "keywords": ["led tail", "led indicator", "led licence", "led interior", "led marker", "led brake"],
+    "keywordPresets": { "led tail": "tail 2 W", "led indicator": "indicator 3 W", "led licence": "licence 1 W", "led interior": "interior 1.5 W", "led marker": "licence 1 W", "led brake": "indicator 3 W" },
+    "defaults": { "kSpike": 3, "spikeMs": 1, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "tail 2 W", "W": 2 }, { "name": "indicator 3 W", "W": 3 }, { "name": "licence 1 W", "W": 1 }, { "name": "interior 1.5 W", "W": 1.5 } ],
+    "pwm": { "onPhaseExp": 0 },
+    "source": "small LED lamps often sit below the firmware noise floor; expect OpenLoad reports when a floor is configured"
+  },
+  {
+    "id": "hid_headlight", "group": "Lighting", "name": "HID headlight", "family": "hid", "icon": "bulb-hid",
+    "keywords": ["hid", "xenon", "bi-xenon"],
+    "defaults": { "kWarm": 2.5, "tauMs": 1000, "vExp": -1, "coolDownMs": 3000 },
+    "presets": [ { "name": "35 W", "W": 35 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "D2S ballast: ~85 W arc warm-up for the first seconds, 35 W steady; ballasts do not tolerate PWM"
+  },
+  {
+    "id": "rotating_beacon", "group": "Lighting", "name": "Rotating beacon", "family": "motor", "icon": "beacon",
+    "keywords": ["rotating", "rotator", "rotating beacon"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000 },
+    "presets": [ { "name": "55 W", "W": 55 } ],
+    "ripple": { "hz": 2, "pct": 10 },
+    "source": "halogen bulb plus a small rotator motor; treated as a motor with mild ripple from the mirror drive"
+  },
+  {
+    "id": "led_strobe", "group": "Lighting", "name": "LED strobe", "family": "strobe", "icon": "strobe",
+    "keywords": ["beacon", "strobe", "warning light"],
+    "defaults": { "flashMs": 50, "periodMs": 500, "offPu": 0, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "12 W", "W": 12 } ],
+    "pwm": { "onPhaseExp": 0 },
+    "source": "50 ms flash every 500 ms at rated power; near zero between flashes"
+  },
+  {
+    "id": "dash_lights", "group": "Lighting", "name": "Dash & gauge lights", "family": "filament", "icon": "bulb-small",
+    "keywords": ["dash light", "gauge light", "instrument light", "illumination", "backlight", "cluster light"],
+    "defaults": { "kCold": 5, "tauMs": "5 + 0.25*W", "vExp": 0.55, "coolDownMs": 1500 },
+    "presets": [ { "name": "10 W", "W": 10 } ],
+    "pwm": { "onPhaseExp": 0.45 },
+    "source": "a handful of 1-2 W wedge bulbs behind the gauges; dimmed by PWM in most installs"
+  }
+]

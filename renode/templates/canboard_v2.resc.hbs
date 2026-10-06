@@ -1,0 +1,39 @@
+# ---- ${name}: ${kind} on ${board} (renode/templates/canboard_v2.resc.hbs) ----
+# Rendered by server/renode.js. Paths are absolute (monitor @paths resolve against the Renode
+# install dir; there is no $ORIGIN). Needs the hub "${hub}" to exist (car.resc.hbs creates it).
+include @${models}/load_models.py
+coffeesim_load "${modelsAnchor}" "CortexMDwt.cs" "ChibiOsFix.cs" "STM32F3_DMA.cs" "STM32F3_ADCv3.cs" "STM32F3_FlashController.cs" "SlcanTcpBridge.cs" "ProfetLoadBank.cs"
+
+mach create "${name}"
+# ${repl} is renode/platforms/${board}.repl with the bank NDJSON port set to ${bankPort}
+machine LoadPlatformDescription @${repl}
+sysbus LoadELF @${elf}
+# ChibiOS preemption workaround (Renode ICSR.RETTOBASE bug, see ChibiOsFix.cs): after LoadELF, before start
+sysbus.chibiosFix Install
+cpu VectorTableOffset 0x08004000
+# the DMA model logs every unhandled control bit the ChibiOS driver writes: keep the log readable
+logLevel 3 sysbus.dma1
+# factory calibration words (TS_CAL1 30 C, VREFINT_CAL, TS_CAL2 110 C; ROM is plain memory in Renode)
+${calWords}
+# config sector (flash 0x0800F800, 2 KB) image: loaded now if present, else the sector reads erased and the
+# firmware writes its defaults; rewritten after every page erase / program sequence. Must come AFTER
+# LoadELF: the ELF's .bss load segment runs past the end of .data into the sector and zero-fills it.
+sysbus.flash_controller Filename @${nv}
+${canConnect}
+# the bank listens to hub traffic for the CAN-RX wake pulse
+connector Connect sysbus.loadBank ${hub}
+mach clear
+
+# Module reset. `machine Reset` alone wipes the loaded ELF and the ROM cal words, and LoadELF zero-fills
+# the config sector, so the server runs this macro instead (runMacro $${macro}).
+macro ${macro}
+"""
+mach set "${name}"
+machine Reset
+sysbus LoadELF @${elf}
+sysbus.chibiosFix Install
+cpu VectorTableOffset 0x08004000
+sysbus.flash_controller Load
+${calWords}
+mach clear
+"""

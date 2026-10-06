@@ -1,0 +1,1163 @@
+{
+  "version": 1,
+  "name": "example",
+  "project": {
+    "path": "scenes/example/example-vehicle.json",
+    "hash": "b756a8530580b1faa9dbbab8d657979959cf3e06"
+  },
+  "firmware": {
+    "pdm": {
+      "source": "release",
+      "tag": "testing-latest"
+    },
+    "pdmmax": {
+      "source": "release",
+      "tag": "testing-latest"
+    },
+    "canboard": {
+      "source": "release",
+      "tag": "testing-latest"
+    },
+    "bootloader": false
+  },
+  "modules": [
+    {
+      "id": "PDM-01",
+      "kind": "pdm",
+      "baseId": 1664,
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "outputs": [
+        {
+          "n": 1,
+          "name": "Low Beam x2",
+          "enabled": true,
+          "currentLimit": 12,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 2,
+          "name": "High Beam x2",
+          "enabled": true,
+          "currentLimit": 12,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 3,
+          "name": "Front Position",
+          "enabled": true,
+          "currentLimit": 2,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 4,
+          "name": "Front Indicator",
+          "enabled": true,
+          "currentLimit": 5,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 5,
+          "name": "output5",
+          "enabled": false,
+          "currentLimit": 20,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 6,
+          "name": "Horn",
+          "enabled": true,
+          "currentLimit": 8,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 7,
+          "name": "Coolant Fan",
+          "enabled": true,
+          "currentLimit": 8,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 8,
+          "name": "output8",
+          "enabled": false,
+          "currentLimit": 20,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        }
+      ],
+      "inputs": [
+        {
+          "n": 1,
+          "name": "digitalInput1",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 2,
+          "name": "digitalInput2",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        }
+      ],
+      "analogIn": [],
+      "digitalOut": [],
+      "hasLua": false
+    },
+    {
+      "id": "PDM-02",
+      "kind": "pdm",
+      "baseId": 1696,
+      "pos": {
+        "x": 420,
+        "y": 0
+      },
+      "outputs": [
+        {
+          "n": 1,
+          "name": "Fuel Pump",
+          "enabled": true,
+          "currentLimit": 12,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 2,
+          "name": "output2",
+          "enabled": false,
+          "currentLimit": 20,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 3,
+          "name": "Rear Position + Plate",
+          "enabled": true,
+          "currentLimit": 3,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 4,
+          "name": "Rear Indicator",
+          "enabled": true,
+          "currentLimit": 5,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 5,
+          "name": "Brake Light",
+          "enabled": true,
+          "currentLimit": 5,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 6,
+          "name": "Reverse Light",
+          "enabled": true,
+          "currentLimit": 3,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 7,
+          "name": "output7",
+          "enabled": false,
+          "currentLimit": 20,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        },
+        {
+          "n": 8,
+          "name": "output8",
+          "enabled": false,
+          "currentLimit": 20,
+          "inrushCurrentLimit": 50,
+          "inrushTime": 1000,
+          "resetMode": 0,
+          "resetTime": 1000,
+          "resetCountLimit": 3,
+          "pwmEnabled": false,
+          "fixedDutyCycle": 100,
+          "frequency": 100,
+          "primaryOutput": -1,
+          "input": 0,
+          "warnLimit": 0,
+          "openLoadLimit": 0,
+          "openLoadTime": 1000
+        }
+      ],
+      "inputs": [
+        {
+          "n": 1,
+          "name": "digitalInput1",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 2,
+          "name": "digitalInput2",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        }
+      ],
+      "analogIn": [],
+      "digitalOut": [],
+      "hasLua": false
+    },
+    {
+      "id": "CB-1",
+      "kind": "canboard",
+      "baseId": 1632,
+      "pos": {
+        "x": 840,
+        "y": 0
+      },
+      "outputs": [],
+      "inputs": [
+        {
+          "n": 1,
+          "name": "digitalInput1",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 2,
+          "name": "digitalInput2",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 3,
+          "name": "digitalInput3",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 4,
+          "name": "digitalInput4",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 5,
+          "name": "digitalInput5",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 6,
+          "name": "digitalInput6",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 7,
+          "name": "digitalInput7",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        },
+        {
+          "n": 8,
+          "name": "digitalInput8",
+          "enabled": false,
+          "mode": 0,
+          "pull": 0,
+          "invert": false
+        }
+      ],
+      "analogIn": [
+        {
+          "n": 1,
+          "name": "Headlights",
+          "enabled": true,
+          "rotary": {
+            "enabled": true,
+            "numPos": 4,
+            "points": [
+              500,
+              1500,
+              2500,
+              3500
+            ],
+            "positionNames": [
+              "OFF",
+              "Park",
+              "Low",
+              "High"
+            ],
+            "tolerance": 200,
+            "invert": false
+          },
+          "switch": {
+            "enabled": false,
+            "threshold": 0,
+            "invert": false
+          }
+        },
+        {
+          "n": 2,
+          "name": "Indicators",
+          "enabled": true,
+          "rotary": {
+            "enabled": true,
+            "numPos": 4,
+            "points": [
+              500,
+              1800,
+              3200,
+              4500
+            ],
+            "positionNames": [
+              "OFF",
+              "Left",
+              "Right",
+              "Hazard"
+            ],
+            "tolerance": 200,
+            "invert": false
+          },
+          "switch": {
+            "enabled": false,
+            "threshold": 0,
+            "invert": false
+          }
+        },
+        {
+          "n": 3,
+          "name": "analogInput3",
+          "enabled": false,
+          "rotary": {
+            "enabled": false,
+            "numPos": 2,
+            "points": [
+              0,
+              0
+            ],
+            "positionNames": [
+              "P0",
+              "P1"
+            ],
+            "tolerance": 200,
+            "invert": false
+          },
+          "switch": {
+            "enabled": false,
+            "threshold": 0,
+            "invert": false
+          }
+        },
+        {
+          "n": 4,
+          "name": "analogInput4",
+          "enabled": false,
+          "rotary": {
+            "enabled": false,
+            "numPos": 2,
+            "points": [
+              0,
+              0
+            ],
+            "positionNames": [
+              "P0",
+              "P1"
+            ],
+            "tolerance": 200,
+            "invert": false
+          },
+          "switch": {
+            "enabled": false,
+            "threshold": 0,
+            "invert": false
+          }
+        },
+        {
+          "n": 5,
+          "name": "analogInput5",
+          "enabled": false,
+          "rotary": {
+            "enabled": false,
+            "numPos": 2,
+            "points": [
+              0,
+              0
+            ],
+            "positionNames": [
+              "P0",
+              "P1"
+            ],
+            "tolerance": 200,
+            "invert": false
+          },
+          "switch": {
+            "enabled": false,
+            "threshold": 0,
+            "invert": false
+          }
+        }
+      ],
+      "digitalOut": [
+        {
+          "n": 1,
+          "name": "digitalOutput1",
+          "enabled": false,
+          "input": 0
+        },
+        {
+          "n": 2,
+          "name": "digitalOutput2",
+          "enabled": false,
+          "input": 0
+        },
+        {
+          "n": 3,
+          "name": "digitalOutput3",
+          "enabled": false,
+          "input": 0
+        },
+        {
+          "n": 4,
+          "name": "digitalOutput4",
+          "enabled": false,
+          "input": 0
+        }
+      ],
+      "hasLua": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "battery",
+      "type": "battery",
+      "pos": {
+        "x": -320,
+        "y": 0
+      },
+      "data": {
+        "vocV": 12.6,
+        "riOhm": 0.015,
+        "altV": 14.2
+      }
+    },
+    {
+      "id": "engine",
+      "type": "engine",
+      "pos": {
+        "x": -320,
+        "y": 90
+      },
+      "data": {
+        "state": "off",
+        "throttle": 0,
+        "speedKph": 0
+      }
+    },
+    {
+      "id": "PDM-01.o1.1",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 0
+      },
+      "data": {
+        "component": "halogen_headlight",
+        "family": "filament",
+        "preset": "H4 low 55 W",
+        "ratedA": 3.99,
+        "ratedW": 55,
+        "fault": null,
+        "guess": false,
+        "label": "Low Beam x2 (1/2)"
+      }
+    },
+    {
+      "id": "PDM-01.o1.2",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 70
+      },
+      "data": {
+        "component": "halogen_headlight",
+        "family": "filament",
+        "preset": "H4 low 55 W",
+        "ratedA": 3.99,
+        "ratedW": 55,
+        "fault": null,
+        "guess": false,
+        "label": "Low Beam x2 (2/2)"
+      }
+    },
+    {
+      "id": "PDM-01.o2.1",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 140
+      },
+      "data": {
+        "component": "halogen_headlight",
+        "family": "filament",
+        "preset": "H4 high 60 W",
+        "ratedA": 4.35,
+        "ratedW": 60,
+        "fault": null,
+        "guess": false,
+        "label": "High Beam x2 (1/2)"
+      }
+    },
+    {
+      "id": "PDM-01.o2.2",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 210
+      },
+      "data": {
+        "component": "halogen_headlight",
+        "family": "filament",
+        "preset": "H4 high 60 W",
+        "ratedA": 4.35,
+        "ratedW": 60,
+        "fault": null,
+        "guess": false,
+        "label": "High Beam x2 (2/2)"
+      }
+    },
+    {
+      "id": "PDM-01.o3.1",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 280
+      },
+      "data": {
+        "component": "halogen_signal_bulb",
+        "family": "filament",
+        "preset": "W5W 5 W",
+        "ratedA": 0.36,
+        "ratedW": 5,
+        "fault": null,
+        "guess": false,
+        "label": "Front Position"
+      }
+    },
+    {
+      "id": "PDM-01.o4.1",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 350
+      },
+      "data": {
+        "component": "halogen_signal_bulb",
+        "family": "filament",
+        "preset": "PY21W 21 W",
+        "ratedA": 1.52,
+        "ratedW": 21,
+        "fault": null,
+        "guess": false,
+        "label": "Front Indicator"
+      }
+    },
+    {
+      "id": "PDM-01.o6.1",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 420
+      },
+      "data": {
+        "component": "horn",
+        "family": "resistive",
+        "preset": "40 W",
+        "ratedA": 2.9,
+        "ratedW": 40,
+        "fault": null,
+        "guess": false,
+        "label": "Horn"
+      }
+    },
+    {
+      "id": "PDM-01.o7.1",
+      "type": "load",
+      "pos": {
+        "x": 220,
+        "y": 490
+      },
+      "data": {
+        "component": "radiator_fan",
+        "family": "motor",
+        "preset": null,
+        "ratedA": 4.8,
+        "ratedW": 66.24,
+        "fault": null,
+        "guess": false,
+        "label": "Coolant Fan"
+      }
+    },
+    {
+      "id": "PDM-02.o1.1",
+      "type": "load",
+      "pos": {
+        "x": 640,
+        "y": 0
+      },
+      "data": {
+        "component": "fuel_pump",
+        "family": "motor",
+        "preset": "255 lph 60 W",
+        "ratedA": 4.35,
+        "ratedW": 60,
+        "fault": null,
+        "guess": false,
+        "label": "Fuel Pump"
+      }
+    },
+    {
+      "id": "PDM-02.o3.1",
+      "type": "load",
+      "pos": {
+        "x": 640,
+        "y": 70
+      },
+      "data": {
+        "component": "halogen_signal_bulb",
+        "family": "filament",
+        "preset": "W5W 5 W",
+        "ratedA": 0.36,
+        "ratedW": 5,
+        "fault": null,
+        "guess": false,
+        "label": "Rear Position + Plate (1/2)"
+      }
+    },
+    {
+      "id": "PDM-02.o3.2",
+      "type": "load",
+      "pos": {
+        "x": 640,
+        "y": 140
+      },
+      "data": {
+        "component": "halogen_signal_bulb",
+        "family": "filament",
+        "preset": "licence 5 W",
+        "ratedA": 0.36,
+        "ratedW": 5,
+        "fault": null,
+        "guess": false,
+        "label": "Rear Position + Plate (2/2)"
+      }
+    },
+    {
+      "id": "PDM-02.o4.1",
+      "type": "load",
+      "pos": {
+        "x": 640,
+        "y": 210
+      },
+      "data": {
+        "component": "halogen_signal_bulb",
+        "family": "filament",
+        "preset": "PY21W 21 W",
+        "ratedA": 1.52,
+        "ratedW": 21,
+        "fault": null,
+        "guess": false,
+        "label": "Rear Indicator"
+      }
+    },
+    {
+      "id": "PDM-02.o5.1",
+      "type": "load",
+      "pos": {
+        "x": 640,
+        "y": 280
+      },
+      "data": {
+        "component": "halogen_signal_bulb",
+        "family": "filament",
+        "preset": "P21W 21 W",
+        "ratedA": 1.52,
+        "ratedW": 21,
+        "fault": null,
+        "guess": false,
+        "label": "Brake Light"
+      }
+    },
+    {
+      "id": "PDM-02.o6.1",
+      "type": "load",
+      "pos": {
+        "x": 640,
+        "y": 350
+      },
+      "data": {
+        "component": "halogen_signal_bulb",
+        "family": "filament",
+        "preset": "P21W 21 W",
+        "ratedA": 1.52,
+        "ratedW": 21,
+        "fault": null,
+        "guess": false,
+        "label": "Reverse Light"
+      }
+    },
+    {
+      "id": "CB-1.ai1",
+      "type": "rotary",
+      "pos": {
+        "x": -320,
+        "y": 180
+      },
+      "data": {
+        "name": "Headlights",
+        "positions": [
+          {
+            "name": "OFF",
+            "mV": 500
+          },
+          {
+            "name": "Park",
+            "mV": 1500
+          },
+          {
+            "name": "Low",
+            "mV": 2500
+          },
+          {
+            "name": "High",
+            "mV": 3500
+          }
+        ],
+        "index": 0,
+        "noiseMv": 20,
+        "tolerance": 200
+      }
+    },
+    {
+      "id": "CB-1.ai2",
+      "type": "rotary",
+      "pos": {
+        "x": -320,
+        "y": 270
+      },
+      "data": {
+        "name": "Indicators",
+        "positions": [
+          {
+            "name": "OFF",
+            "mV": 500
+          },
+          {
+            "name": "Left",
+            "mV": 1800
+          },
+          {
+            "name": "Right",
+            "mV": 3200
+          },
+          {
+            "name": "Hazard",
+            "mV": 4500
+          }
+        ],
+        "index": 0,
+        "noiseMv": 20,
+        "tolerance": 200
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": {
+        "node": "engine",
+        "handle": "alternator"
+      },
+      "to": {
+        "node": "battery",
+        "handle": "alt"
+      }
+    },
+    {
+      "id": "e2",
+      "from": {
+        "node": "PDM-01.o1.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:1"
+      }
+    },
+    {
+      "id": "e3",
+      "from": {
+        "node": "PDM-01.o1.2",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:1"
+      }
+    },
+    {
+      "id": "e4",
+      "from": {
+        "node": "PDM-01.o2.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:2"
+      }
+    },
+    {
+      "id": "e5",
+      "from": {
+        "node": "PDM-01.o2.2",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:2"
+      }
+    },
+    {
+      "id": "e6",
+      "from": {
+        "node": "PDM-01.o3.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:3"
+      }
+    },
+    {
+      "id": "e7",
+      "from": {
+        "node": "PDM-01.o4.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:4"
+      }
+    },
+    {
+      "id": "e8",
+      "from": {
+        "node": "PDM-01.o6.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:6"
+      }
+    },
+    {
+      "id": "e9",
+      "from": {
+        "node": "PDM-01.o7.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-01",
+        "handle": "out:7"
+      }
+    },
+    {
+      "id": "e10",
+      "from": {
+        "node": "PDM-02.o1.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-02",
+        "handle": "out:1"
+      }
+    },
+    {
+      "id": "e11",
+      "from": {
+        "node": "PDM-02.o3.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-02",
+        "handle": "out:3"
+      }
+    },
+    {
+      "id": "e12",
+      "from": {
+        "node": "PDM-02.o3.2",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-02",
+        "handle": "out:3"
+      }
+    },
+    {
+      "id": "e13",
+      "from": {
+        "node": "PDM-02.o4.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-02",
+        "handle": "out:4"
+      }
+    },
+    {
+      "id": "e14",
+      "from": {
+        "node": "PDM-02.o5.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-02",
+        "handle": "out:5"
+      }
+    },
+    {
+      "id": "e15",
+      "from": {
+        "node": "PDM-02.o6.1",
+        "handle": "supply"
+      },
+      "to": {
+        "node": "PDM-02",
+        "handle": "out:6"
+      }
+    },
+    {
+      "id": "e16",
+      "from": {
+        "node": "CB-1.ai1",
+        "handle": "wiper"
+      },
+      "to": {
+        "node": "CB-1",
+        "handle": "ai:1"
+      }
+    },
+    {
+      "id": "e17",
+      "from": {
+        "node": "CB-1.ai2",
+        "handle": "wiper"
+      },
+      "to": {
+        "node": "CB-1",
+        "handle": "ai:2"
+      }
+    }
+  ],
+  "globals": {
+    "noisePct": 1,
+    "forceOutputsOn": true
+  }
+}

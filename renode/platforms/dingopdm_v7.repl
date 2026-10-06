@@ -1,0 +1,302 @@
+// dingoPDM v7 — STM32F446RE: HSE 8 MHz, PLL M5 N180 P2 -> SYSCLK 144 MHz; APB1/APB2 /4 = 36 MHz -> timer clocks 72 MHz
+// (verified: ChibiOS programs TIM2 PSC = 7199 for its 10 kHz tick, i.e. it believes TIMCLK = 72 MHz).
+// Derived from Renode's platforms/cpus/stm32f4.repl, self-contained (no SVD download, no USB tag).
+// Requires these models to be compiled first (the .resc does it):
+//   include @renode/models/STM32DMA_Circ.cs      circular DMA for the ADC1 scan
+//   include @renode/models/STM32F4_I2C_DMA.cs    I2Cv1 master with DMA (ChibiOS)
+//   include @renode/models/Mb85rc256.cs          config FRAM, file-backed
+//   include @renode/models/Mcp9808.cs            board temperature sensor
+//   include @renode/models/CortexMDwt.cs         DWT CYCCNT for ChibiOS polled delays
+//   include @renode/models/ChibiOsFix.cs         RETTOBASE workaround (Install after LoadELF)
+//   include @renode/models/ProfetLoadBank.cs     load bank (ADC feed, DI drive, wake pulse)
+// (renode/models/load_models.py compiles them once per process: `coffeesim_load`)
+
+// ---------------- core ----------------
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m4f"
+    nvic: nvic
+    PerformanceInMips: 144
+
+nvic: IRQControllers.NVIC @ sysbus 0xE000E000
+    priorityMask: 0xF0
+    systickFrequency: 144000000
+    IRQ -> cpu@0
+
+// ---------------- memory ----------------
+flash: Memory.MappedMemory @ sysbus 0x08000000
+    size: 0x80000                 // 512 KB; OpenBLT sector 0, application from 0x08004000
+
+flash_controller: MTD.STM32F4_FlashController @ {
+        sysbus 0x40023C00;
+        sysbus new Bus.BusMultiRegistration { address: 0x1FFFC000; size: 0x100; region: "optionBytes" }
+    }
+    flash: flash
+
+sram: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x20000                 // 128 KB (SRAM1 + SRAM2)
+
+rom1: Memory.MappedMemory @ sysbus 0x1FFF0000
+    size: 0xC000                  // system memory; factory cal words written by the .resc (0x1FFF7A2A..2E)
+
+rom2: Memory.MappedMemory @ sysbus 0x1FFFC400
+    size: 0x3C00
+
+bitbandPeripherals: Miscellaneous.BitBanding @ sysbus <0x42000000, +0x2000000>
+    peripheralBase: 0x40000000
+
+bitbandSram: Miscellaneous.BitBanding @ sysbus <0x22000000, +0x200000>
+    peripheralBase: 0x20000000
+
+// ---------------- system ----------------
+rcc: Miscellaneous.STM32F4_RCC @ sysbus 0x40023800
+    rtcPeripheral: rtc
+
+pwr: Miscellaneous.STM32_PWR @ sysbus 0x40007000
+
+rtc: Timers.STM32F4_RTC @ sysbus 0x40002800
+    AlarmIRQ -> nvic@41
+
+crc: CRC.STM32_CRC @ sysbus 0x40023000
+    series: STM32Series.F4
+
+iwdg: Timers.STM32_IndependentWatchdog @ sysbus 0x40003000
+    frequency: 32000
+    windowOption: false
+    defaultPrescaler: 0x4
+
+exti: IRQControllers.STM32F4_EXTI @ sysbus 0x40013C00
+    numberOfOutputLines: 24
+    [0-4] -> nvic@[6-10]
+    [5-9] -> nvicInput23@[0-4]
+    [10-15] -> nvicInput40@[0-5]
+    [16, 17, 18, 22] -> nvic@[1, 41, 42, 3]
+
+nvicInput23: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 5
+    -> nvic@23
+
+nvicInput40: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 6
+    -> nvic@40
+
+// ---------------- GPIO (A..H on the F446RE) ----------------
+gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x40020000, +0x400>
+    modeResetValue: 0xA8000000
+    outputSpeedResetValue: 0x0C000000
+    pullUpPullDownResetValue: 0x64000000
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x40020400, +0x400>
+    modeResetValue: 0x00000280
+    outputSpeedResetValue: 0x000000C0
+    pullUpPullDownResetValue: 0x00000100
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortC: GPIOPort.STM32_GPIOPort @ sysbus <0x40020800, +0x400>
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortD: GPIOPort.STM32_GPIOPort @ sysbus <0x40020C00, +0x400>
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortE: GPIOPort.STM32_GPIOPort @ sysbus <0x40021000, +0x400>
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortF: GPIOPort.STM32_GPIOPort @ sysbus <0x40021400, +0x400>
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortG: GPIOPort.STM32_GPIOPort @ sysbus <0x40021800, +0x400>
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+gpioPortH: GPIOPort.STM32_GPIOPort @ sysbus <0x40021c00, +0x400>
+    numberOfAFs: 16
+    [0-15] -> exti@[0-15]
+
+// Status (PC1) and error (PC0) LEDs: `sysbus.gpioPortC.statusLed State`
+statusLed: Miscellaneous.LED @ gpioPortC
+errorLed: Miscellaneous.LED @ gpioPortC
+
+gpioPortC:
+    1 -> statusLed@0
+    0 -> errorLed@0
+
+// ---------------- DMA ----------------
+dma1: DMA.STM32DMA_Circ @ sysbus 0x40026000
+    [0-7] -> nvic@[11-17,47]
+
+dma2: DMA.STM32DMA_Circ @ sysbus 0x40026400
+    [0-7] -> nvic@[56-60,68-70]
+
+// ---------------- ADC1: Profet IS + battery + temp + VREFINT, circular DMA on DMA2 stream 4 ----------------
+// FeedSample uses the ADC INPUT number: IS1 0, IS2 12, IS3_4 13, IS5_6 1, IS7_8 2, VBAT 3, TEMP 16, VREFINT 17
+adc1: Analog.STM32_ADC @ sysbus 0x40012000
+    IRQ -> nvic@18
+    DMARequest -> dma2@4
+
+// ---------------- CAN ----------------
+can1: CAN.STMCAN @ sysbus <0x40006400, +0x400>
+    [0-3] -> nvic@[19-22]
+
+can2: CAN.STMCAN @ sysbus <0x40006800, +0x400>
+    [0-3] -> nvic@[63-66]
+    master: can1
+
+// ---------------- I2C1: FRAM 0x50 + MCP9808 0x18 (RX DMA = DMA1 stream 0, TX = stream 6) ----------------
+i2c1: I2C.STM32F4_I2C_DMA @ sysbus 0x40005400
+    EventInterrupt -> nvic@31
+    ErrorInterrupt -> nvic@32
+    RxDMARequest -> dma1@0
+    TxDMARequest -> dma1@6
+
+fram: I2C.Mb85rc256 @ i2c1 0x50
+    size: 0x8000
+
+tempSensor: I2C.MCP9808 @ i2c1 0x18
+
+// ---------------- USB OTG FS stub ----------------
+// usbStart() -> otg_core_reset() spins on GRSTCTL.AHBIDL (bit 31) and CSRST (bit 0) clearing.
+// GRSTCTL reads AHBIDL set / CSRST clear; everything else reads 0 -> the device never enumerates,
+// GetUsbConnected() stays false (the car's normal state).
+otgfs: Python.PythonPeripheral @ sysbus 0x50000000
+    size: 0x40000
+    initable: false
+    script: '''
+if request.IsRead:
+    if request.Offset == 0x10:
+        request.Value = 0x80000000
+    else:
+        request.Value = 0
+'''
+
+// ---------------- timers: every timer clock is 72 MHz (APB 36 MHz x2) ----------------
+// TIM2 = ChibiOS tick-less system timer (10 kHz). PWM: out1 TIM3, out2 TIM4, out3 TIM5, out4 TIM9,
+// out5 TIM10, out6 TIM11, out7 TIM12, out8 TIM13 (all channel 1, boards/dingopdm_v7/port_pwm.h).
+timer1: Timers.STM32_Timer @ sysbus 0x40010000
+    BreakInterrupt -> nvic@24
+    UpdateInterrupt -> nvic@25
+    [TriggerInterrupt, CommutationInterrupt] -> nvic@[26, 26]
+    CaptureCompareInterrupt -> nvic@27
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer2: Timers.STM32_Timer @ sysbus 0x40000000
+    -> nvic@28
+    frequency: 72000000
+    initialLimit: 0xFFFFFFFF
+
+timer3: Timers.STM32_Timer @ sysbus 0x40000400
+    -> nvic@29
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer4: Timers.STM32_Timer @ sysbus 0x40000800
+    -> nvic@30
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer5: Timers.STM32_Timer @ sysbus 0x40000C00
+    -> nvic@50
+    frequency: 72000000
+    initialLimit: 0xFFFFFFFF
+
+timer6: Timers.STM32_Timer @ sysbus 0x40001000
+    -> nvic@54
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer7: Timers.STM32_Timer @ sysbus 0x40001400
+    -> nvic@55
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer8: Timers.STM32_Timer @ sysbus 0x40010400
+    BreakInterrupt -> nvic@43
+    UpdateInterrupt -> nvic@44
+    [TriggerInterrupt, CommutationInterrupt] -> nvic@[45, 45]
+    CaptureCompareInterrupt -> nvic@46
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer9: Timers.STM32_Timer @ sysbus 0x40014000
+    -> nvic@24
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer10: Timers.STM32_Timer @ sysbus 0x40014400
+    -> nvic@25
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer11: Timers.STM32_Timer @ sysbus 0x40014800
+    -> nvic@26
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer12: Timers.STM32_Timer @ sysbus 0x40001800
+    -> nvic@43
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer13: Timers.STM32_Timer @ sysbus 0x40001C00
+    -> nvic@44
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+timer14: Timers.STM32_Timer @ sysbus 0x40002000
+    -> nvic@45
+    frequency: 72000000
+    initialLimit: 0xFFFF
+
+// ---------------- load bank (renode/models/ProfetLoadBank.cs, renode/BANK.md) ----------------
+// Requires ProfetLoadBank.cs compiled ONCE per Renode process (load_models.py does it).
+loadBank: Miscellaneous.ProfetLoadBank @ sysbus 0x5FFE0000
+    board: "pdm"
+    adc: adc1
+    port: 7800
+
+// Profet IN lines -> bank inputs 0..7 (out1..out8), DSEL lines -> 8..10.
+// A pin connection replaces that pin's `-> exti@n` entry; none of these pins is a wake source.
+gpioPortB:
+    10 -> loadBank@0     // out1 PB10
+    12 -> loadBank@3     // out4 PB12
+    1  -> loadBank@4     // out5 PB1
+    14 -> loadBank@8     // DSEL 3/4 PB14
+
+gpioPortC:
+    8  -> loadBank@1     // out2 PC8
+    6  -> loadBank@2     // out3 PC6
+    4  -> loadBank@5     // out6 PC4
+    5  -> loadBank@9     // DSEL 5/6 PC5
+
+gpioPortA:
+    7  -> loadBank@6     // out7 PA7
+    4  -> loadBank@7     // out8 PA4
+    5  -> loadBank@10    // DSEL 7/8 PA5
+
+// bank outputs -> port inputs: DI1 PA10, DI2 PC9, CAN RX wake PB8
+loadBank:
+    0 -> gpioPortA@10
+    1 -> gpioPortC@9
+    8 -> gpioPortB@8
+
+// ---------------- debug blocks ----------------
+// ChibiOS RETTOBASE workaround (see ChibiOsFix.cs); call `sysbus.chibiosFix Install` after LoadELF
+chibiosFix: Miscellaneous.ChibiOsFix @ sysbus 0x5FFF1000
+    windowAddress: 0x5FFF1000
+
+dwt: Miscellaneous.CortexMDwt @ sysbus 0xE0001000
+    cpu: cpu
+
+dbgmcu: Python.PythonPeripheral @ sysbus 0xE0042000
+    size: 0x10
+    initable: false
+    script: '''
+if request.IsRead:
+    request.Value = 0x10006421 if request.Offset == 0 else 0
+'''

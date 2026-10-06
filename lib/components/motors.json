@@ -1,0 +1,96 @@
+[
+  {
+    "id": "radiator_fan", "group": "Motors", "name": "Radiator fan", "family": "motor", "icon": "fan",
+    "keywords": ["fan", "rad", "radiator", "coolant", "cooling", "condenser"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000 },
+    "presets": [ { "name": "80 W", "W": 80 }, { "name": "120 W", "W": 120 }, { "name": "180 W", "W": 180 }, { "name": "2x180 W", "W": 360 } ],
+    "ripple": { "hz": 30, "pct": 3 },
+    "source": "brushed fan motor: ~5x locked-rotor at start decaying over a few hundred ms; current rises with voltage (fan law)"
+  },
+  {
+    "id": "hvac_blower", "group": "Motors", "name": "HVAC blower", "family": "motor", "icon": "blower",
+    "keywords": ["blower", "hvac", "cabin fan", "a/c fan"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000 },
+    "presets": [ { "name": "150 W", "W": 150 }, { "name": "250 W", "W": 250 } ],
+    "ripple": { "hz": 30, "pct": 3 },
+    "source": "squirrel-cage blower: higher inertia than a radiator fan, same locked-rotor ratio"
+  },
+  {
+    "id": "fuel_pump", "group": "Motors", "name": "Fuel pump", "family": "motor", "icon": "pump",
+    "keywords": ["fuel", "pump", "fuel pump", "high pressure pump", "lift pump"],
+    "keywordPresets": { "fuel": "255 lph 60 W", "fuel pump": "255 lph 60 W", "lift pump": "lift pump 40 W", "high pressure pump": "340 lph 110 W" },
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": -0.3, "coolDownMs": 2000 },
+    "presets": [ { "name": "255 lph 60 W", "W": 60 }, { "name": "340 lph 110 W", "W": 110 }, { "name": "450 lph 160 W", "W": 160 }, { "name": "lift pump 40 W", "W": 40 } ],
+    "ripple": { "hz": 100, "pct": 8 },
+    "source": "roller-cell pump: ~4x start, negative vExp because the regulator holds pressure (power ~ constant)"
+  },
+  {
+    "id": "water_pump", "group": "Motors", "name": "Electric water pump", "family": "motor", "icon": "pump",
+    "keywords": ["water pump", "ewp", "coolant pump", "circulation pump", "aux pump"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": -0.3, "coolDownMs": 2000 },
+    "presets": [ { "name": "80 W", "W": 80 }, { "name": "150 W", "W": 150 }, { "name": "300 W", "W": 300 } ],
+    "ripple": { "hz": 60, "pct": 5 },
+    "source": "Davies Craig style EWP; centrifugal, modest start ratio"
+  },
+  {
+    "id": "wiper_motor", "group": "Motors", "name": "Wiper motor", "family": "wiper", "icon": "wiper",
+    "keywords": ["wiper", "windscreen wiper", "windshield wiper"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000, "slowRps": 0.7, "fastRps": 1.2 },
+    "presets": [ { "name": "60 W", "W": 60 }, { "name": "90 W", "W": 90 } ],
+    "source": "two-speed worm-drive motor; load swings ±35 % per sweep (ripple at the sweep rate), park switch feedback handled by the wiper node"
+  },
+  {
+    "id": "washer_pump", "group": "Motors", "name": "Washer pump", "family": "motor", "icon": "pump",
+    "keywords": ["washer", "screenwash", "wash pump"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": -0.3, "coolDownMs": 2000 },
+    "presets": [ { "name": "30 W", "W": 30 } ],
+    "ripple": { "hz": 80, "pct": 8 },
+    "source": "tiny centrifugal pump, low inertia: ~3x start, settles in ~100 ms"
+  },
+  {
+    "id": "window_seat_motor", "group": "Motors", "name": "Window / seat / sunroof", "family": "actuator", "icon": "actuator",
+    "keywords": ["window", "sunroof", "seat motor", "seat adjust", "power seat", "roof"],
+    "keywordPresets": { "window": "Window 60 W", "sunroof": "Sunroof 60 W", "roof": "Sunroof 60 W", "seat motor": "Seat 90 W", "seat adjust": "Seat 90 W", "power seat": "Seat 90 W" },
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000, "travelMs": 4000 },
+    "presets": [ { "name": "Window 60 W", "W": 60, "params": { "travelMs": 4000 } }, { "name": "Seat 90 W", "W": 90, "params": { "travelMs": 8000 } },
+                 { "name": "Sunroof 60 W", "W": 60, "params": { "travelMs": 6000 } } ],
+    "source": "motor runs to the end stop (3-8 s) then stalls at locked-rotor current until the output is released"
+  },
+  {
+    "id": "door_lock", "group": "Motors", "name": "Door lock / tailgate", "family": "actuator", "icon": "lock",
+    "keywords": ["lock", "tailgate", "latch", "actuator", "boot release", "trunk"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000, "travelMs": 300 },
+    "presets": [ { "name": "40 W", "W": 40, "params": { "travelMs": 300 } } ],
+    "source": "central-locking actuator: 300 ms stroke then stall; normally pulsed for < 1 s"
+  },
+  {
+    "id": "mirror_actuator", "group": "Motors", "name": "Mirror adjust / fold", "family": "actuator", "icon": "mirror",
+    "keywords": ["mirror fold", "mirror adjust", "fold"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000, "travelMs": 2000 },
+    "presets": [ { "name": "10 W", "W": 10, "params": { "travelMs": 2000 } } ],
+    "source": "small gearmotor, 2 s travel then stall"
+  },
+  {
+    "id": "diff_locker", "group": "Motors", "name": "Diff locker / 4WD actuator", "family": "actuator", "icon": "gear",
+    "keywords": ["locker", "diff", "4wd", "transfer case", "e-locker", "hub lock"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": 0.5, "coolDownMs": 2000, "travelMs": 1500 },
+    "presets": [ { "name": "50 W", "W": 50, "params": { "travelMs": 1500 } } ],
+    "source": "electric locker motor: ~1.5 s engagement then stall against the fork"
+  },
+  {
+    "id": "air_compressor", "group": "Motors", "name": "Air compressor", "family": "compressor", "icon": "compressor",
+    "keywords": ["compressor", "air", "onboard air", "arb"],
+    "defaults": { "kLR": 5, "tauMs": 300, "kLoaded": 1.4, "pressureTauMs": 20000, "vExp": 0.5, "coolDownMs": 2000 },
+    "presets": [ { "name": "150 W", "W": 150 }, { "name": "300 W", "W": 300 }, { "name": "450 W", "W": 450 } ],
+    "ripple": { "hz": 25, "pct": 10 },
+    "source": "piston compressor: 6x start with 500 ms tau, then current climbs 40 % as tank pressure builds over a minute"
+  },
+  {
+    "id": "power_steering_pump", "group": "Motors", "name": "Power-steering pump (PDM-Max)", "family": "motor", "icon": "pump",
+    "keywords": ["steering", "ehps", "eps", "power steering"],
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": -0.3, "coolDownMs": 2000 },
+    "presets": [ { "name": "600 W", "W": 600 }, { "name": "900 W", "W": 900 } ],
+    "ripple": { "hz": 100, "pct": 6 },
+    "source": "electro-hydraulic pump (Astra/Corsa type): 45-65 A steady, needs a PDM-Max output"
+  }
+]

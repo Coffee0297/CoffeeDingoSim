@@ -1,0 +1,60 @@
+# Single dingoPDM on a CAN hub with the SLCAN bridge on 127.0.0.1:7777.
+# Run from the CoffeeDingoSim repo root:
+#   <renode> --disable-gui -P 1234 renode/test/pdm_single.resc
+# Placeholders: <FW> = firmware build dir (e.g. ../CoffeeDingoFW/build), <REPO> = absolute path of this repo.
+# Either replace them below, or set the variables BEFORE the script:
+#   -e "$elf=@/abs/path/dingopdm_v7.elf; $nv=@/abs/path/renode/test/nv/PDM-01.bin"
+# (renode/test/gen_single.mjs renders the same machine through the real templates with resolved paths.)
+
+$elf ?= @<FW>/dingopdm_v7.elf
+# NOTE: relative @paths resolve against the Renode install dir, not the cwd -> absolute path
+$nv ?= @<REPO>/renode/test/nv/PDM-01.bin
+
+
+include @renode/models/STM32DMA_Circ.cs
+include @renode/models/STM32F4_I2C_DMA.cs
+include @renode/models/Mb85rc256.cs
+include @renode/models/Mcp9808.cs
+include @renode/models/SlcanTcpBridge.cs
+include @renode/models/CortexMDwt.cs
+include @renode/models/ChibiOsFix.cs
+include @renode/models/ProfetLoadBank.cs
+
+emulation CreateCANHub "vehicle"
+
+mach create "PDM-01"
+machine LoadPlatformDescription @renode/platforms/dingopdm_v7.repl
+# monitor $variables are not expanded inside quotes; renode.js templates the port
+machine LoadPlatformDescriptionFromString "slcanBridge: CAN.SlcanTcpBridge @ sysbus 0x5FFF0000 { port: 7777 }"
+
+sysbus LoadELF $elf
+sysbus.chibiosFix Install
+# ChibiOS reads ADC1 DR with 16-bit DMA; STM32_ADC only implements 32-bit access
+sysbus EnableAllTranslations sysbus.adc1
+cpu VectorTableOffset 0x08004000
+
+# factory calibration words (ROM is plain memory in Renode, otherwise VDDA = 0 V and every current = 0 A)
+sysbus WriteWord 0x1FFF7A2A 1500
+sysbus WriteWord 0x1FFF7A2C 943
+sysbus WriteWord 0x1FFF7A2E 1194
+
+# hold every scanned ADC input (otherwise each conversion of an unfed channel logs a warning and reads 0)
+sysbus.adc1 FeedSample 0 0 -1
+sysbus.adc1 FeedSample 0 12 -1
+sysbus.adc1 FeedSample 0 13 -1
+sysbus.adc1 FeedSample 0 1 -1
+sysbus.adc1 FeedSample 0 2 -1
+sysbus.adc1 FeedSample 1557 3 -1
+sysbus.adc1 FeedSample 943 16 -1
+sysbus.adc1 FeedSample 1500 17 -1
+
+sysbus.i2c1.fram Filename $nv
+
+connector Connect sysbus.can1 vehicle
+connector Connect sysbus.slcanBridge vehicle
+
+logLevel 2
+logLevel 3 sysbus
+# `cpu LogFunctionNames true` here to trace boot by function name (with `logLevel 1 cpu`)
+# then `start` from the monitor
+

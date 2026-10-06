@@ -1,0 +1,33 @@
+# ProfetLoadBank compile + smoke test on an empty STM32F4 (no firmware). Run from the CoffeeDingoSim root.
+# Driven by renode/test/bank_probe.mjs (starts Renode itself); by hand:
+#   renode.exe --disable-gui --plain -P 1298 -e "include @renode/test/bank_compile.resc"
+# Bank NDJSON port 7899 here so it never collides with a running sim on 7800.
+
+include @renode/models/ProfetLoadBank.cs
+
+mach create "BANKTEST"
+machine LoadPlatformDescription @platforms/cpus/stm32f4.repl
+# the stock stm32f4.repl has no ADC; add the dingoPDM's ADC1 at its real address
+machine LoadPlatformDescriptionFromString "adc1: Analog.STM32_ADC @ sysbus 0x40012000"
+# The same text BANK.md gives for dingopdm_v7.repl, cut down to out1 + DSEL 3/4 + DI1 + CAN RX:
+# out1 IN (PB10) -> bank input 0; DSEL 3/4 (PB14) -> bank input 8; bank DI1 -> PA10, CAN RX wake -> PB8
+machine LoadPlatformDescriptionFromString """
+loadBank: Miscellaneous.ProfetLoadBank @ sysbus 0x5FFE0000
+    board: "pdm"
+    adc: adc1
+    port: 7899
+    seed: 1
+
+gpioPortB:
+    10 -> loadBank@0
+    14 -> loadBank@8
+
+loadBank:
+    0 -> gpioPortA@10
+    8 -> gpioPortB@8
+"""
+
+# no firmware: keep the core halted so only virtual time and the bank's clock entry run
+cpu IsHalted true
+logLevel 3
+logLevel 1 sysbus.loadBank

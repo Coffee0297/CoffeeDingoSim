@@ -1,0 +1,37 @@
+# ---- ${name}: ${kind} on ${board} (renode/templates/dingopdm_v7.resc.hbs) ----
+# Rendered by server/renode.js. Paths are absolute (monitor @paths resolve against the Renode
+# install dir; there is no $ORIGIN). Needs the hub "${hub}" to exist (car.resc.hbs creates it).
+include @${models}/load_models.py
+coffeesim_load "${modelsAnchor}" "STM32DMA_Circ.cs" "STM32F4_I2C_DMA.cs" "Mb85rc256.cs" "Mcp9808.cs" "CortexMDwt.cs" "ChibiOsFix.cs" "SlcanTcpBridge.cs" "ProfetLoadBank.cs"
+
+mach create "${name}"
+# ${repl} is renode/platforms/${board}.repl with the bank NDJSON port set to ${bankPort}
+machine LoadPlatformDescription @${repl}
+sysbus LoadELF @${elf}
+# ChibiOS preemption workaround (Renode ICSR.RETTOBASE bug, see ChibiOsFix.cs): after LoadELF, before start
+sysbus.chibiosFix Install
+# ChibiOS reads ADC1 DR with 16-bit DMA; STM32_ADC only implements 32-bit access
+sysbus EnableAllTranslations sysbus.adc1
+# the DMA model logs every unhandled control bit the ChibiOS driver writes: keep the log readable
+logLevel 3 sysbus.dma1
+logLevel 3 sysbus.dma2
+# factory calibration words (ROM is plain memory in Renode; without them VDDA = 0 V and every current = 0 A)
+${calWords}
+# config FRAM image, loaded now if present, rewritten after every write transaction
+sysbus.i2c1.fram Filename @${nv}
+${canConnect}
+# the bank listens to hub traffic for the CAN-RX wake pulse
+connector Connect sysbus.loadBank ${hub}
+mach clear
+
+# Module reset. `machine Reset` alone wipes the loaded ELF and the ROM cal words, so the server
+# runs this macro instead (runMacro $${macro}).
+macro ${macro}
+"""
+mach set "${name}"
+machine Reset
+sysbus LoadELF @${elf}
+sysbus.chibiosFix Install
+${calWords}
+mach clear
+"""

@@ -1,0 +1,27 @@
+# Second machine for bank_probe.mjs: a CANBoard-kind bank on the shared listener, with STM32F3_ADC x2.
+# Include AFTER bank_compile.resc (the model is already compiled; do not include the .cs twice).
+mach create "CBTEST"
+machine LoadPlatformDescription @platforms/cpus/stm32f4.repl
+machine LoadPlatformDescriptionFromString """
+adc1: Analog.STM32F3_ADC @ sysbus <0x50000000, +0x100>
+    referenceVoltage: 3.3
+    externalEventFrequency: 1000000
+
+adc2: Analog.STM32F3_ADC @ sysbus <0x50000100, +0x100>
+    referenceVoltage: 3.3
+    externalEventFrequency: 1000000
+
+loadBank: Miscellaneous.ProfetLoadBank @ sysbus 0x5FFE0000
+    board: "canboard"
+    adc: adc1
+    adc2: adc2
+    port: 7899
+
+gpioPortA:
+    15 -> loadBank@0
+
+loadBank:
+    2 -> gpioPortA@7
+    8 -> gpioPortA@11
+"""
+cpu IsHalted true

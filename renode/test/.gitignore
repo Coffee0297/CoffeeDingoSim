@@ -1,0 +1,7 @@
+# Renode test artefacts
+*.log
+*.err
+*.pid
+nv/
+gen/
+probe.out

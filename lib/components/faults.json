@@ -1,0 +1,63 @@
+[
+  {
+    "id": "burnt_bulb", "group": "Faults", "name": "Burnt bulb", "family": "filament", "icon": "bulb-broken",
+    "keywords": [],
+    "fault": { "kind": "open", "atMs": 0 },
+    "defaults": { "kCold": 5, "tauMs": "5 + 0.25*W", "vExp": 0.55, "coolDownMs": 1500 },
+    "presets": [ { "name": "H4 low 55 W", "W": 55 }, { "name": "P21W 21 W", "W": 21 }, { "name": "W5W 5 W", "W": 5 } ],
+    "pwm": { "onPhaseExp": 0.45 },
+    "source": "filament with the open fault pre-set: output On but 0 A, so the firmware reports OpenLoad when a floor is configured"
+  },
+  {
+    "id": "blocked_pump", "group": "Faults", "name": "Blocked pump", "family": "motor", "icon": "pump-broken",
+    "keywords": [],
+    "fault": { "kind": "stall", "atMs": 0 },
+    "defaults": { "kLR": 4, "tauMs": "50 + 1*W", "vExp": -0.3, "coolDownMs": 2000 },
+    "presets": [ { "name": "fuel pump 60 W", "W": 60 }, { "name": "washer pump 30 W", "W": 30 }, { "name": "water pump 150 W", "W": 150 } ],
+    "ripple": { "hz": 0, "pct": 0 },
+    "source": "motor with the stall fault pre-set: locked-rotor current (kLR x rated) for as long as the output is on"
+  },
+  {
+    "id": "short_circuit", "group": "Faults", "name": "Short circuit", "family": "resistive", "icon": "short",
+    "keywords": [],
+    "fault": { "kind": "short", "atMs": 0 },
+    "defaults": { "vExp": 1, "coolDownMs": 0 },
+    "presets": [ { "name": "dead short", "W": 55 } ],
+    "source": "shortA 999 A: the sense saturates and the inrush/steady limit trips immediately"
+  },
+  {
+    "id": "broken_wire", "group": "Faults", "name": "Broken wire", "family": "resistive", "icon": "wire-broken",
+    "keywords": [],
+    "fault": { "kind": "open", "atMs": 0 },
+    "defaults": { "vExp": 1, "coolDownMs": 0 },
+    "presets": [ { "name": "no load", "W": 55 } ],
+    "source": "open fault on a generic load: 0 A, OpenLoad if a floor is configured"
+  },
+  {
+    "id": "loose_connector", "group": "Faults", "name": "Loose connector", "family": "filament", "icon": "connector",
+    "keywords": [],
+    "fault": { "kind": "intermittent", "atMs": 0 },
+    "defaults": { "kCold": 5, "tauMs": "5 + 0.25*W", "vExp": 0.55, "coolDownMs": 1500 },
+    "presets": [ { "name": "H4 low 55 W", "W": 55 }, { "name": "P21W 21 W", "W": 21 } ],
+    "pwm": { "onPhaseExp": 0.45 },
+    "source": "intermittent fault: random 50-500 ms dropouts; each re-make re-inrushes if the filament cooled"
+  },
+  {
+    "id": "corroded_contact", "group": "Faults", "name": "Corroded contact (high resistance)", "family": "filament", "icon": "connector",
+    "keywords": [],
+    "fault": { "kind": "hires", "atMs": 0 },
+    "defaults": { "kCold": 5, "tauMs": "5 + 0.25*W", "vExp": 0.55, "coolDownMs": 1500 },
+    "presets": [ { "name": "H4 low 55 W", "W": 55 }, { "name": "P21W 21 W", "W": 21 } ],
+    "pwm": { "onPhaseExp": 0.45 },
+    "source": "hires fault: series resistance drops the current to 0.6x, dim bulb below the warn/open-load floor"
+  },
+  {
+    "id": "wrong_bulb", "group": "Faults", "name": "Wrong bulb (x2)", "family": "filament", "icon": "bulb-wrong",
+    "keywords": [],
+    "fault": { "kind": "wrongpart", "atMs": 0 },
+    "defaults": { "kCold": 5, "tauMs": "5 + 0.25*W", "vExp": 0.55, "coolDownMs": 1500 },
+    "presets": [ { "name": "H4 low 55 W (fitted 100 W)", "W": 55 }, { "name": "W5W 5 W (fitted 10 W)", "W": 5 } ],
+    "pwm": { "onPhaseExp": 0.45 },
+    "source": "wrongpart fault: 2x the rated current, the classic 100 W bulb in a 55 W socket"
+  }
+]

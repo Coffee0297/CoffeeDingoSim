@@ -1,0 +1,34 @@
+VERSION "1.0"
+
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	BA_DEF_DEF_
+
+BS_:
+
+BU_: SimEngine
+
+
+BO_ 512 SimEngine1: 8 SimEngine
+ SG_ RPM : 0|16@1+ (0.25,0) [0|16383.75] "rpm" Vector__XXX
+ SG_ CLT : 16|8@1+ (1,-40) [-40|215] "degC" Vector__XXX
+ SG_ OilP : 24|8@1+ (0.05,0) [0|12.75] "bar" Vector__XXX
+ SG_ TPS : 32|8@1+ (0.5,0) [0|100] "%" Vector__XXX
+
+BO_ 513 SimEngine2: 8 SimEngine
+ SG_ Speed : 0|16@1+ (0.1,0) [0|6553.5] "km/h" Vector__XXX
+ SG_ Gear : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+
+
+CM_ BO_ 512 "CoffeeDingoSim built-in engine: RPM, coolant, oil pressure, throttle";
+CM_ BO_ 513 "CoffeeDingoSim built-in engine: vehicle speed and gear";
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+BA_DEF_DEF_ "GenMsgCycleTime" 100;
+BA_ "GenMsgCycleTime" BO_ 512 100;
+BA_ "GenMsgCycleTime" BO_ 513 100;
+VAL_ 513 Gear 0 "P" 1 "R" 2 "N" 3 "D" 4 "2" 5 "1" ;

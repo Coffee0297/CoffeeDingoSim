@@ -1,0 +1,19 @@
+# CoffeeDingoSim scene "${scene}" (renode/templates/car.resc.hbs, rendered by server/renode.js)
+# monitor :${monitorPort}  SLCAN bridge :${bridgePort}  load bank NDJSON :${bankPort}
+# The server starts Renode with only the monitor (-P) and then runs `include @<this file>` over
+# telnet, so every error in here comes back on the monitor and lands in the Renode log stream.
+# Every @path is absolute: relative paths resolve against the Renode install directory.
+emulation CreateCANHub "${hub}"
+
+${machines}
+
+# SLCAN bridge: a peripheral on machine 0 (it needs a machine for its 1 kHz virtual-time injection
+# clock). SlcanTcpBridge.cs was compiled by the first machine template (coffeesim_load).
+mach set 0
+machine LoadPlatformDescriptionFromString "slcanBridge: CAN.SlcanTcpBridge @ sysbus 0x5FFF0000 { port: ${bridgePort} }"
+connector Connect sysbus.slcanBridge ${hub}
+mach clear
+
+# 100 us quantum keeps inter-module CAN latency realistic; the run is real-time-paced by default
+emulation SetGlobalQuantum "0.0001"
+logLevel 2

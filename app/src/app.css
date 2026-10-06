@@ -1,0 +1,399 @@
+/* CoffeeDingoSim theme tokens. Dark is the default; [data-theme="light"] overrides.
+   The six output-state colours are fixed by the firmware vocabulary (Off/On/Overcurrent/
+   Fault/Warning/OpenLoad); every other saturated colour on screen is the single indigo accent
+   (selection, focus, primary action) and the two chart traces, so a state dot is never
+   mistaken for chrome. */
+
+:root {
+  color-scheme: dark;
+  --bg: #15181d;
+  --panel: #1b1f26;
+  --raised: #242933;
+  --sunken: #111419;
+  --line: #2f3541;
+  --line-strong: #3c4452;
+  --ink: #e7e9ee;
+  --muted: #8a93a5;
+  --faint: #5b6373;
+
+  --accent: #7c8cff;
+  --accent-soft: rgba(124, 140, 255, 0.18);
+  --accent-ink: #0f1222;
+
+  --st-off: #6b7280;
+  --st-on: #3dd68c;
+  --st-oc: #ff8a3d;
+  --st-fault: #ff4d5e;
+  --st-warn: #f5c342;
+  --st-ol: #4da3ff;
+
+  --trace-model: #c9a4ff;
+  --trace-meas: #f2f4f7;
+  --grid: rgba(138, 147, 165, 0.18);
+
+  --r-s: 4px;
+  --r-m: 6px;
+  --r-l: 10px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+
+  --font: 'Instrument Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
+
+  --topbar-h: 46px;
+  --palette-w: 264px;
+  --side-w: 400px;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #eef0f3;
+  --panel: #ffffff;
+  --raised: #f4f5f8;
+  --sunken: #e6e8ec;
+  --line: #d9dde4;
+  --line-strong: #c2c8d2;
+  --ink: #171a21;
+  --muted: #5c6577;
+  --faint: #9aa3b2;
+  --accent: #4f5fe6;
+  --accent-soft: rgba(79, 95, 230, 0.14);
+  --accent-ink: #ffffff;
+  --trace-model: #6e4bd6;
+  --trace-meas: #171a21;
+  --grid: rgba(23, 26, 33, 0.12);
+  --shadow: 0 10px 30px rgba(20, 24, 40, 0.14);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Controls: one quiet style, the accent only on the primary action and focus. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-m);
+  background: var(--raised);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover {
+  border-color: var(--muted);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.btn.danger {
+  border-color: var(--st-fault);
+  color: var(--st-fault);
+}
+.btn.sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.input,
+select.input {
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  color: var(--ink);
+  min-width: 0;
+}
+.input:focus,
+.btn:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.input.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  width: 64px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--muted);
+}
+.faint {
+  color: var(--faint);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+/* Output-state dot: used on module rows, the chart legend and the bus log. */
+.state-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--st-off);
+  flex: none;
+}
+.state-dot[data-state='On'] {
+  background: var(--st-on);
+  box-shadow: 0 0 6px var(--st-on);
+}
+.state-dot[data-state='Overcurrent'] {
+  background: var(--st-oc);
+  box-shadow: 0 0 6px var(--st-oc);
+}
+.state-dot[data-state='Fault'] {
+  background: var(--st-fault);
+  box-shadow: 0 0 6px var(--st-fault);
+}
+.state-dot[data-state='Warning'] {
+  background: var(--st-warn);
+}
+.state-dot[data-state='OpenLoad'] {
+  background: var(--st-ol);
+}
+.state-dot.bool-on {
+  background: var(--st-on);
+}
+
+/* Canvas nodes share one chassis. Each node type only adds its body. */
+.node {
+  min-width: 170px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  color: var(--ink);
+  font-size: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+.node.selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.node-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+  cursor: grab;
+}
+.node-head .spacer {
+  flex: 1;
+}
+.node-body {
+  padding: 6px 0;
+}
+.node-section {
+  padding: 4px 10px 2px;
+  color: var(--faint);
+  font-size: 11px;
+}
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px;
+  min-height: 22px;
+}
+.row .label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row .label .n {
+  color: var(--faint);
+}
+.row .val {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 48px;
+  text-align: right;
+}
+.row.dim {
+  opacity: 0.5;
+}
+.row.clickable {
+  cursor: pointer;
+}
+.row.clickable:hover {
+  background: var(--raised);
+}
+.row.active {
+  background: var(--accent-soft);
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--r-s);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--raised);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.badge.warn {
+  color: var(--st-warn);
+  border-color: color-mix(in srgb, var(--st-warn) 40%, transparent);
+}
+.badge.fault {
+  color: var(--st-fault);
+  border-color: color-mix(in srgb, var(--st-fault) 50%, transparent);
+}
+.badge.guess {
+  color: var(--st-oc);
+  border-color: color-mix(in srgb, var(--st-oc) 50%, transparent);
+}
+.badge.info {
+  color: var(--st-ol);
+  border-color: color-mix(in srgb, var(--st-ol) 40%, transparent);
+}
+.node-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 10px 6px;
+  align-items: center;
+}
+.node-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.node input.input,
+.node select.input {
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.node input[type='range'] {
+  accent-color: var(--accent);
+}
+
+/* Svelte Flow theming through its public variables. */
+.svelte-flow {
+  --xy-background-color: var(--bg);
+  --xy-background-pattern-color: var(--line);
+  --xy-edge-stroke: var(--faint);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-edge-stroke-width: 1.5;
+  --xy-connectionline-stroke: var(--accent);
+  --xy-connectionline-stroke-width: 1.5;
+  --xy-handle-background-color: var(--raised);
+  --xy-handle-border-color: var(--muted);
+  --xy-node-background-color: transparent;
+  --xy-node-color: var(--ink);
+  --xy-node-border: none;
+  --xy-node-border-radius: var(--r-l);
+  --xy-node-boxshadow-selected: none;
+  --xy-node-boxshadow-hover: none;
+  --xy-controls-button-background-color: var(--panel);
+  --xy-controls-button-background-color-hover: var(--raised);
+  --xy-controls-button-color: var(--ink);
+  --xy-controls-button-color-hover: var(--ink);
+  --xy-controls-button-border-color: var(--line);
+  --xy-controls-box-shadow: none;
+  --xy-minimap-background-color: var(--panel);
+  --xy-minimap-mask-background-color: rgba(21, 24, 29, 0.55);
+  --xy-minimap-node-background-color: var(--line-strong);
+  --xy-selection-background-color: var(--accent-soft);
+  --xy-selection-border: 1px dashed var(--accent);
+  --xy-attribution-background-color: transparent;
+  font-family: var(--font);
+}
+.svelte-flow__handle {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+}
+.svelte-flow__handle.connectingto,
+.svelte-flow__handle.valid {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.svelte-flow__handle.handle-out {
+  border-color: var(--line-strong);
+}
+.svelte-flow__edge.selected .svelte-flow__edge-path {
+  stroke-width: 2.5;
+}
+.svelte-flow__attribution {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+/* Scrollbars that match the chrome. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

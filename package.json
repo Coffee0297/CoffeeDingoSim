@@ -1,0 +1,26 @@
+{
+  "name": "coffeedingosim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vehicle simulator for dingoPDM / CANBoard: real firmware in Renode, graphical load and stimulus canvas, SLCAN bridge to dingoConfig.",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "vite --config app/vite.config.js",
+    "build": "vite build --config app/vite.config.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "ci": "node server/ci.js"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "serialport": "^12.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@xyflow/svelte": "^1.0.0",
+    "svelte": "^5.0.0",
+    "vite": "^6.0.0"
+  }
+}

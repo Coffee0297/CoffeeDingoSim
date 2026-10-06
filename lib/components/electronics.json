@@ -1,0 +1,63 @@
+[
+  {
+    "id": "ecu", "group": "Electronics", "name": "ECU / PCM", "family": "electronics", "icon": "chip",
+    "keywords": ["ecu", "pcm", "ems", "efi", "engine control", "ecm", "tcu", "haltech", "link", "megasquirt", "emtron", "motec"],
+    "keywordPresets": { "ecu": "20 W", "pcm": "40 W", "ems": "20 W", "efi": "20 W", "ecm": "20 W", "tcu": "20 W" },
+    "defaults": { "kSpike": 4, "spikeMs": 1, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "20 W", "W": 20 }, { "name": "40 W", "W": 40 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "switch-mode input: bulk capacitor spike ~8x for 1 ms, then constant power (vExp -1)"
+  },
+  {
+    "id": "dash_display", "group": "Electronics", "name": "Dash / gauges / Raspberry Pi display", "family": "electronics", "icon": "display",
+    "keywords": ["pi", "dash", "gauge", "display", "cluster", "raspberry", "screen", "tablet", "dashboard"],
+    "defaults": { "kSpike": 4, "spikeMs": 1, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "15 W", "W": 15 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "Pi 4 + 7in display via a buck converter, ~1 A at 13.8 V"
+  },
+  {
+    "id": "head_unit", "group": "Electronics", "name": "Head unit / radio / GPS / cameras", "family": "electronics", "icon": "radio",
+    "keywords": ["radio", "stereo", "gps", "cam", "head unit", "infotainment", "navigation", "dashcam", "reversing camera"],
+    "keywordPresets": { "radio": "radio 30 W", "stereo": "radio 30 W", "head unit": "radio 30 W", "infotainment": "radio 30 W", "gps": "GPS 10 W", "navigation": "GPS 10 W",
+                        "cam": "cameras 5 W", "dashcam": "cameras 5 W", "reversing camera": "cameras 5 W" },
+    "defaults": { "kSpike": 4, "spikeMs": 1, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "radio 30 W", "W": 30 }, { "name": "GPS 10 W", "W": 10 }, { "name": "cameras 5 W", "W": 5 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "head unit at listening volume ~2 A; GPS/cameras well under 1 A"
+  },
+  {
+    "id": "amplifier", "group": "Electronics", "name": "Amplifier", "family": "amplifier", "icon": "amp",
+    "keywords": ["amp", "amplifier", "subwoofer", "sub amp"],
+    "defaults": { "kSpike": 4, "spikeMs": 1, "meanPu": 0.65, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "300 W", "W": 300 }, { "name": "600 W", "W": 600 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "class D amp: input spike, then current wanders 0.3..1.0 of rated with the music (2 Hz random walk modelled as ripple)"
+  },
+  {
+    "id": "usb_charger", "group": "Electronics", "name": "USB charger / phone", "family": "electronics", "icon": "usb",
+    "keywords": ["usb", "charger", "phone", "socket", "cigarette", "12v socket", "power outlet", "accessory socket"],
+    "keywordPresets": { "usb": "15 W", "phone": "15 W", "charger": "30 W", "socket": "30 W", "cigarette": "30 W", "12v socket": "30 W", "power outlet": "30 W", "accessory socket": "30 W" },
+    "defaults": { "kSpike": 4, "spikeMs": 1, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "15 W", "W": 15 }, { "name": "30 W", "W": 30 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "buck converter charger; 30 W covers a dual-port PD socket"
+  },
+  {
+    "id": "can_module", "group": "Electronics", "name": "Another dingoPDM / CANBoard", "family": "electronics", "icon": "module",
+    "keywords": ["pdm", "canboard", "can board", "keypad", "module", "dingo"],
+    "defaults": { "kSpike": 4, "spikeMs": 1, "vExp": -1, "coolDownMs": 20 },
+    "presets": [ { "name": "1.5 W", "W": 1.5 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "module logic supply ~100 mA; below the firmware noise floor on every output"
+  },
+  {
+    "id": "ignition_coils", "group": "Electronics", "name": "Ignition coils / injectors supply", "family": "pulsed", "icon": "spark",
+    "keywords": ["ign", "coil", "inj", "ignition", "injector", "coil pack", "cop"],
+    "keywordPresets": { "ign": "coils 60 W", "ignition": "coils 60 W", "coil": "coils 60 W", "coil pack": "coils 60 W", "cop": "coils 60 W", "inj": "injectors 120 W", "injector": "injectors 120 W" },
+    "defaults": { "rateHz": 27, "dutyOn": 0.5, "lowPu": 0.2, "vExp": -1, "coolDownMs": 0 },
+    "presets": [ { "name": "coils 60 W", "W": 60 }, { "name": "injectors 120 W", "W": 120 } ],
+    "pwm": { "onPhaseExp": 0, "pwmable": false },
+    "source": "supply current chops with the firing events: 4-cyl at idle fires ~27 Hz; rateHz follows Engine RPM when linked"
+  }
+]
