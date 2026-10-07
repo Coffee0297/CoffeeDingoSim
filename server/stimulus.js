@@ -5,6 +5,7 @@ import path from 'node:path';
 import { ROOT } from './state.js';
 import { getComponents, getDbc, getEngine, getBattery, getSceneLib } from './compat.js';
 import { SIM_ENGINE_FALLBACK_DBC } from './fallbacks.js';
+import { stepWiper } from '../lib/wiper.js';
 
 export const COLORS = ['off', 'red', 'green', 'orange', 'blue', 'violet', 'cyan', 'white'];
 const BLINK_KEYS = 12; // PKP-2600SI: stacked LED layout
@@ -124,6 +125,7 @@ export async function createStimulus(ctx) {
   let timer = null;
   let lastV = 12.6;
   let lastTotalA = 0;
+  const wipers = new Map();   // node id → { angleDeg, t, sent }
 
   const scene = () => ctx.getScene() || { modules: [], nodes: [], edges: [] };
   const node = (id) => scene().nodes?.find((n) => n.id === id);
@@ -304,6 +306,8 @@ export async function createStimulus(ctx) {
           if (!data && db) { const enc = dbc.encodeMessage(db, f.id, f.signals || {}); data = enc && Array.from(enc); }
           if (data) ctx.bus.inject({ id: f.id, ext: f.id > 0x7ff, dlc: data.length, data }, 'cangen');
         });
+      } else if (n.type === 'wiper') {
+        stepWiperNode(sc, n);
       } else if (n.type === 'keypad' && (n.data?.pressed || []).some(Boolean)) {
         ctx.bus.inject(keypadButtonFrame(n.data), 'keypad'); // keep held buttons alive past the firmware timeout
       }
@@ -321,6 +325,30 @@ export async function createStimulus(ctx) {
         if (changed) ctx.broadcast({ type: 'battery', node: bat.id, v: Math.round(v * 100) / 100, totalA: Math.round(lastTotalA * 10) / 10 });
       }
     }
+  }
+
+  // Wiper mechanics: power from its PDM output, RUN / SPEED from the CANBoard relay outputs wired to it,
+  // in vehicle time (the supplying module's telemetry clock, so a paused emulation stops the blade).
+  function stepWiperNode(sc, n) {
+    const sup = moduleLinks(sc, n.id, 'out:', 'supply')[0];
+    const tel = sup && ctx.getTelemetry?.(sup.module);
+    const relay = (handle) => {
+      const e = (sc.edges || []).find((x) => x.to?.node === n.id && x.to?.handle === handle && /^do:/.test(x.from?.handle || ''));
+      const k = e ? Number(e.from.handle.split(':')[1]) : 0;
+      return !!(k && ctx.getTelemetry?.(e.from.node)?.digitalOut?.[k - 1]);
+    };
+    const st = wipers.get(n.id) || { angleDeg: 0, t: tel?.t ?? 0, sent: '' };
+    const t = tel?.t ?? st.t;
+    const powered = ['On', 'Warning'].includes(tel?.outputs?.[sup.n - 1]?.state);
+    const run = relay('run'), speed = relay('speed');
+    const r = stepWiper(st.angleDeg, { powered, run, speed, dtS: Math.max(0, Math.min(1, t - st.t)), slowRps: n.data?.slowRps, fastRps: n.data?.fastRps });
+    st.angleDeg = r.angleDeg; st.t = t;
+    wipers.set(n.id, st);
+    // the park switch, when wired to a digital input, closes to ground in the park window
+    for (const l of moduleLinks(sc, n.id, 'di:', 'park')) ctx.bank.gpio(l.module, `DI${l.n}`, switchPinValue('gnd', r.park));
+    const msg = { type: 'wiper', node: n.id, angleDeg: Math.round(r.angleDeg), run, speed, park: r.park, powered };
+    const key = JSON.stringify(msg);
+    if (key !== st.sent) { st.sent = key; ctx.broadcast(msg); }
   }
 
   return {

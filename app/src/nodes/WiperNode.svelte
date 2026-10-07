@@ -5,10 +5,12 @@
   import { Handle, Position, useSvelteFlow } from '@xyflow/svelte';
   import { wiperLive } from '../ws.js';
   import { NOMINAL_V } from '../scene.js';
+  import EditableTitle from './EditableTitle.svelte';
 
   let { id, data, selected } = $props();
   const { updateNodeData } = useSvelteFlow();
-  const live = $derived($wiperLive[id] || { angleDeg: 0, run: false, speed: false, park: true });
+  const live = $derived($wiperLive[id] || { angleDeg: 0, run: false, speed: false, park: true, powered: false });
+  const moving = $derived(live.powered && (live.run || !live.park));
   // Sweep 0..360° of crank maps to a 0..110° blade arc (out and back).
   const blade = $derived.by(() => {
     const a = (live.angleDeg || 0) % 360;
@@ -20,8 +22,10 @@
   });
 </script>
 
-<div class="node wiper" class:selected>
-  <div class="node-head"><span>Wiper motor</span><span class="spacer"></span><span class="num muted">{data.ratedW} W</span></div>
+<div class="node wiper" class:selected class:lit={moving}>
+  <div class="node-head"><EditableTitle value={data.name || data.label} placeholder="Wiper motor" onsave={(v) => updateNodeData(id, { name: v })} /><span class="spacer"></span>
+    <span class="onoff" class:on={moving}>{moving ? (live.run ? (live.speed ? 'FAST' : 'SLOW') : 'PARKING') : live.powered ? 'PARKED' : 'OFF'}</span></div>
+  <div class="kind faint">Wiper motor · {data.ratedW} W</div>
   <div class="rows">
     <div class="row"><Handle type="source" position={Position.Left} id="supply" class="handle-out" /><span class="label">Supply</span><span class="val">{(data.ratedW / NOMINAL_V).toFixed(1)} A</span></div>
     <div class="row"><Handle type="target" position={Position.Left} id="run" /><span class="state-dot" class:bool-on={live.run}></span><span class="label">Run relay</span></div>
@@ -30,7 +34,7 @@
   </div>
   <svg viewBox="0 0 120 64" class="gauge" aria-label="Wiper angle">
     <path d="M14 58 A46 46 0 0 1 106 58" class="arc" />
-    <line x1="60" y1="58" x2={tip[0]} y2={tip[1]} class="blade" class:moving={live.run} />
+    <line x1="60" y1="58" x2={tip[0]} y2={tip[1]} class="blade" class:moving={moving} />
     <circle cx="60" cy="58" r="3.5" class="hub" />
   </svg>
   <div class="node-controls nodrag">
@@ -41,6 +45,11 @@
 </div>
 
 <style>
+  .kind { padding: 0 10px 4px; font-size: 11px; margin-top: -4px; }
+  .wiper { --lit: var(--st-on); transition: box-shadow 0.15s, border-color 0.15s; }
+  .wiper.lit { border-color: var(--lit); box-shadow: 0 0 0 1px var(--lit), 0 0 18px color-mix(in srgb, var(--lit) 55%, transparent); }
+  .onoff { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); }
+  .onoff.on { background: var(--lit); border-color: var(--lit); color: #06140c; }
   .wiper {
     width: 230px;
   }
