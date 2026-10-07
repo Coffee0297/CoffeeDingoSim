@@ -3,7 +3,10 @@
 # The server starts Renode with only the monitor (-P) and then runs `include @<this file>` over
 # telnet, so every error in here comes back on the monitor and lands in the Renode log stream.
 # Every @path is absolute: relative paths resolve against the Renode install directory.
-emulation CreateCANHub "${hub}"
+# the vehicle bus: each module receives frames one frame time apart, as on a real bus (PacedCANHub.cs)
+include @${models}/load_models.py
+coffeesim_load "${modelsAnchor}" "PacedCANHub.cs"
+emulation CreatePacedCANHub "${hub}"
 
 ${machines}
 
@@ -14,6 +17,7 @@ machine LoadPlatformDescriptionFromString "slcanBridge: CAN.SlcanTcpBridge @ sys
 connector Connect sysbus.slcanBridge ${hub}
 mach clear
 
-# 100 us quantum keeps inter-module CAN latency realistic; the run is real-time-paced by default
-emulation SetGlobalQuantum "0.0001"
+# 1 ms quantum: inter-module latency stays under one CAN cycle (firmware messages run at 10-100 ms) while
+# the 7-machine barrier costs 10x less than at 100 us (0.31x -> ~0.8x real time)
+emulation SetGlobalQuantum "0.001"
 logLevel 2

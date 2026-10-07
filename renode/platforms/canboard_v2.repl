@@ -24,6 +24,12 @@ nvic: IRQControllers.NVIC @ sysbus 0xE000E000
 flash: Memory.MappedMemory @ sysbus 0x08000000
     size: 0x10000
 
+// Not a real region. The ELF's .bss segment (NOBITS) carries a flash LMA (0x0800DDC0 + 0x2538) that runs
+// past the 64 KB end; Renode's LoadELF zero-fills MemSiz at the LMA, real flashing writes nothing there.
+// This page absorbs that fill so it isn't logged as an access to a non-existing peripheral.
+elfBssShadow: Memory.MappedMemory @ sysbus 0x08010000
+    size: 0x1000
+
 // FLASH interface (F1-style FLASHv1). Filename (2 KB config-sector image) is set by the .resc.
 flash_controller: MTD.STM32F3_FlashController @ sysbus 0x40022000
     flash: flash
@@ -120,6 +126,13 @@ gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x48000400, +0x400>
     pullUpPullDownResetValue: 0x00000100
     numberOfAFs: 16
     [0-15] -> exti@[0-15]
+
+// ChibiOS initialises every port in its board table, PC and PD included (STM32F303K8 bonds out only PC14/15)
+gpioPortC: GPIOPort.STM32_GPIOPort @ sysbus <0x48000800, +0x400>
+    numberOfAFs: 16
+
+gpioPortD: GPIOPort.STM32_GPIOPort @ sysbus <0x48000C00, +0x400>
+    numberOfAFs: 16
 
 gpioPortF: GPIOPort.STM32_GPIOPort @ sysbus <0x48001400, +0x400>
     numberOfAFs: 16

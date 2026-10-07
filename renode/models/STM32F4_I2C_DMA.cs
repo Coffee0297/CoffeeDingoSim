@@ -23,6 +23,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -53,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             cr1 = 0; cr2 = 0; oar1 = 0; oar2 = 0; ccr = 0; trise = 2;
             ResetTransfer();
             ScheduleByte(false);
+            FlushSchedule();
         }
 
         public long Size => 0x400;
@@ -70,7 +72,23 @@ namespace Antmicro.Renode.Peripherals.I2C
         public ushort ReadWord(long offset) => (ushort)ReadDoubleWord(offset);
         public void WriteWord(long offset, ushort value) => WriteDoubleWord(offset, value);
 
+        // Every entry point takes `sync`, and the byte-time callback runs with the clock source locked, so the
+        // clock entry must never be changed while `sync` is held (lock-order inversion -> whole-emulation
+        // deadlock, seen as Renode at 0 % CPU with virtual time frozen). ScheduleByte only records the
+        // request; FlushSchedule applies it after the lock is released.
         public uint ReadDoubleWord(long offset)
+        {
+            try { return ReadLocked(offset); }
+            finally { FlushSchedule(); }
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            try { WriteLocked(offset, value); }
+            finally { FlushSchedule(); }
+        }
+
+        private uint ReadLocked(long offset)
         {
             lock(sync)
             {
@@ -104,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        private void WriteLocked(long offset, uint value)
         {
             lock(sync)
             {
@@ -272,6 +290,12 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void OnByteTime()
         {
+            try { OnByteTimeLocked(); }
+            finally { FlushSchedule(); }
+        }
+
+        private void OnByteTimeLocked()
+        {
             lock(sync)
             {
                 switch(state)
@@ -346,12 +370,26 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void ScheduleByte(bool enable)
         {
+            pendingSchedule = enable ? 1 : 0;   // last request wins, as with the direct exchange
+        }
+
+        private void FlushSchedule()
+        {
+            if(Monitor.IsEntered(sync))
+            {
+                return;   // nested entry (DMA reading DR from inside OnByteTime): the outer call flushes
+            }
+            var p = Interlocked.Exchange(ref pendingSchedule, -1);
+            if(p < 0)
+            {
+                return;
+            }
             if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
             {
                 cpu.SyncTime();
             }
             machine.ClockSource.ExchangeClockEntryWith(OnByteTime,
-                entry => entry.With(enabled: enable, value: 0));
+                entry => entry.With(enabled: p == 1, value: 0));
         }
 
         private enum State { Idle, Address, Transmit, ReceiveWaitAddr, Receive, Nack }
@@ -363,6 +401,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private const uint Sr1Af = 1u << 10;
 
         private readonly object sync = new object();
+        private int pendingSchedule = -1;   // -1 none, 0 stop, 1 (re)start the byte timer
         private readonly List<byte> txBuffer = new List<byte>();
         private II2CPeripheral child;
         private State state;

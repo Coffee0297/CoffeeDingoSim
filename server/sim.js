@@ -65,8 +65,21 @@ export async function createSim(opts = {}) {
   const recorder = createRecorder({ getVtime: () => state.renode.vtime, getSceneName: () => state.sceneName, getFirmware: () => state.scene?.firmware ?? null });
 
   // ------------------------------------------------------------ link wiring --------------
-  bank.on('connect', () => { state.bank.connected = true; toast('info', 'load bank connected'); stim.pushBankScenes(); stim.pushLevels(); });
-  bank.on('disconnect', () => { state.bank.connected = false; toast('warn', 'load bank disconnected'); });
+  // Renode drops both links on every stop/restart (and per module during first-start bring-up), so a drop
+  // is only worth a warning when the link stays down while Renode is meant to be running.
+  const linkWatch = (label) => {
+    let timer = null, warned = false;
+    return {
+      down() {
+        clearTimeout(timer);
+        timer = setTimeout(() => { if (['running', 'paused'].includes(state.renode.status)) { warned = true; toast('warn', `${label} lost (no reconnect for 5 s)`); } }, 5000);
+      },
+      up() { clearTimeout(timer); if (warned) { warned = false; toast('info', `${label} reconnected`); } },
+    };
+  };
+  const bankLink = linkWatch('load bank link'), busLink = linkWatch('CAN bus bridge');
+  bank.on('connect', () => { state.bank.connected = true; bankLink.up(); stim.pushBankScenes(); stim.pushLevels(); });
+  bank.on('disconnect', () => { state.bank.connected = false; bankLink.down(); });
   bank.on('hello', (m) => {
     const list = state.bank.machines.filter((x) => x.machine !== m.machine);
     state.bank.machines = [...list, { machine: m.machine, board: m.board, outputs: m.outputs }];
@@ -86,8 +99,8 @@ export async function createSim(opts = {}) {
     toast('info', `${ev.machine}: ${ev.what}`);
   });
 
-  bus.on('connect', () => { state.bus.connected = true; toast('info', 'CAN bus bridge connected'); });
-  bus.on('disconnect', () => { state.bus.connected = false; toast('warn', 'CAN bus bridge disconnected'); });
+  bus.on('connect', () => { state.bus.connected = true; busLink.up(); });
+  bus.on('disconnect', () => { state.bus.connected = false; busLink.down(); });
   bus.on('line', (l) => { for (const b of bridges) b.fromHub(l); });
   bus.on('telemetry', (t) => { S.setTelemetry(t.module, t); recorder.telemetry(t); });
 
@@ -189,7 +202,7 @@ export async function createSim(opts = {}) {
       return firmwarePaths;
     },
 
-    async renodeCmd({ cmd, seconds, module, firmware, paused } = {}) {
+    async renodeCmd({ cmd, seconds, module, firmware, paused, read, watch } = {}) {
       try {
         switch (cmd) {
           case 'start': return await api.startRenode({ firmware, paused });
@@ -200,6 +213,8 @@ export async function createSim(opts = {}) {
           case 'reset': return await api.resetModule(module);
           case 'sleep': return renode.sleep(module);
           case 'wake': return renode.wake(module);
+          case 'inspect': return await renode.inspect(module, read);
+          case 'hubstats': return await renode.hubStats(watch);
           default: throw new Error(`unknown renode cmd ${cmd}`);
         }
       } catch (e) {

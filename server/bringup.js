@@ -223,8 +223,12 @@ export async function configureModule(bus, m, g, { defaultBase, log = () => {}, 
   for (const w of writes) await writeChecked(bus, m.baseId, w);
   await burnChecked(bus, m.baseId);
   await new Promise((r) => setTimeout(r, 150)); // InitCan re-runs ~50 ms after the burn reply
-  const v = await request(bus, m.baseId + P.CONFIG_RX_OFFSET, P.readParam(0, 0), (fr) => fr.id === m.baseId && fr.data[0] === P.Cmd.Read, 1000);
-  const r = v && P.parseParamReply(Uint8Array.from(v.data));
+  // a frame can be lost while the module restarts CAN after the burn: ask up to three times
+  let r = null;
+  for (let i = 0; i < 3 && !r; i++) {
+    const v = await request(bus, m.baseId + P.CONFIG_RX_OFFSET, P.readParam(0, 0), (fr) => fr.id === m.baseId && fr.data[0] === P.Cmd.Read, 1000);
+    r = v && P.parseParamReply(Uint8Array.from(v.data));
+  }
   if (!r || r.value !== m.baseId) throw new Error(`${m.id}: verify read of the base id failed`);
   log(`[bringup] ${m.id}: ${writes.length} params written, burned, base id verified 0x${m.baseId.toString(16)}`);
   return { from, version: ver.version, writes: writes.length };

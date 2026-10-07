@@ -14,8 +14,9 @@ inputs from the simulator. Install Renode first: [`../tools/install-renode.md`](
 | `models/Mb85rc256.cs` | MB85RC256V FRAM, 2-byte address, file-backed (`Filename`), saved after every write |
 | `models/Mcp9808.cs` | MCP9808 with correct IDs, limits, alert bits; `SetTemperature <C>` |
 | `models/CortexMDwt.cs` | DWT CTRL + CYCCNT (ChibiOS polled delays) |
-| `models/ChibiOsFix.cs` | workaround for Renode's ICSR.RETTOBASE bug (below); `sysbus.chibiosFix Install` after LoadELF |
+| `models/ChibiOsFix.cs` | workaround for Renode's ICSR.RETTOBASE and stale-active bugs (below); `sysbus.chibiosFix Install` after LoadELF |
 | `models/SlcanTcpBridge.cs` | CAN hub member + SLCAN text server (docs/interfaces.md §6), `FramesSeen`, `FramesInjected` |
+| `models/PacedCANHub.cs` | the vehicle CAN hub: per-receiver delivery one frame time apart (sharp edge 13), `Stats` |
 | `models/load_models.py` | `coffeesim_load "<anchor>" "X.cs" …` compiles each model once per Renode process |
 | `models/ProfetLoadBank.cs` | the load bank (see `BANK.md`) |
 | `templates/car.resc.hbs`, `templates/dingopdm_v7.resc.hbs` | rendered by `server/renode.js generateResc` |
@@ -84,9 +85,37 @@ node renode/test/mon.mjs start
    resolve against the Renode install directory, not the cwd. Templates therefore use absolute paths.
    `include @x.cs` compiles a new assembly every time, so use `coffeesim_load`.
 10. **`machine Reset` wipes the loaded ELF** ("PC does not lay in memory") unless the machine has a `reset`
-    macro. Templates that support module reset need `macro reset "sysbus LoadELF @… ; sysbus.chibiosFix Install"`.
+    macro, defined while that machine is selected (Renode looks for `<machine>.reset`). It also runs on the
+    firmware's own NVIC system reset, so without it a module that resets itself goes silent for good. Both
+    board templates define it (ELF, ChibiOsFix, VTOR, config image, cal words).
 11. Script errors during a startup `.resc` (passed on the command line with `-P`) are not in the log. Include
     the script from a monitor connection to see them.
+12. **Stale NVIC active bit.** Under CAN load an external IRQ (seen: CAN1 RX0) can stay set in IABR after
+    its handler returned, while the CPU runs thread code. ChibiOsFix then counts two active exceptions in
+    every later ISR, never allows a preemption, and the module idles with its threads READY: silent on the
+    bus, RX FIFO full. `ChibiOsFix` clears active bits seen while IPSR = 0 (Thread mode, where none can be
+    active) from a 1 kHz check; `StaleActiveCleared` (window offset 0xC) counts the repairs.
+13. **Quantum bursts.** Renode's `CANHub` hands a frame to the other machines at the sender's timestamp and a
+    machine ahead in time sees it at the next quantum sync, while the modules also send their cyclic frames
+    in lockstep. A receiver then gets ~10 frames at one instant and its 3-deep bxCAN FIFO overflows.
+    `PacedCANHub.cs` (`emulation CreatePacedCANHub`) delivers to each receiver one frame time apart;
+    `vehicle Stats` / `vehicle WatchId <id>` give per-port counters. That made a 1 ms quantum usable
+    (0.31x -> ~0.7x real time with 7 machines at 100 us).
+14. **Idle CPUs skip to the quantum end.** A Renode CPU with nothing to run is advanced to the end of the
+    quantum in one step, so every clock event of that quantum (paced deliveries included) fires before its
+    firmware runs again: at a 1 ms quantum ~10 % of deliveries met a full FIFO (none at 100 us). The paced hub
+    therefore holds a frame while the receiver has 2 pending (`holds` in `vehicle Stats`), up to ~10 ms, then
+    delivers anyway so a firmware that really stops draining still overruns. Note: STMCAN's
+    `FifoMessagesPending` field is never updated; the real depth is its private `RxFifo[]` queues.
+15. **Bursty tool traffic.** `SlcanTcpBridge` injects one frame per ms (a USB/serial adapter); injecting a
+    whole host burst in one tick overflowed the receivers.
+16. **Lock order in models.** Never change a clock entry while holding a model lock that a clock callback
+    also takes (`STM32F4_I2C_DMA` did: the whole emulation deadlocked at 0 % CPU). Record the request under
+    the lock, apply it after.
+    Bus reads from a clock callback are the same trap: sysbus holds the target's access lock, and a CPU
+    writing a timer/SysTick register holds that lock while asking the clock source. `ProfetLoadBank` reads
+    PWM timers and SCB->SCR with `TryReadBus` (`Monitor.TryEnter` on sysbus's private per-peripheral lock,
+    keeping the last value when busy); it froze the emulation under `emulation RunFor`.
 
 ## Not verified / open
 

@@ -640,16 +640,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 var d = 0.0;
                 if(timerPresent[o])
                 {
-                    var cr1 = sysbus.ReadDoubleWord(timers[o]);
-                    if((cr1 & 1) != 0)
+                    TryReadTimer(o);
+                    var t = timerRegs[o];
+                    if((t.Cr1 & 1) != 0 && t.Ccr > 0)
                     {
-                        var ccr = sysbus.ReadDoubleWord(timers[o] + 0x34);
-                        var arr = sysbus.ReadDoubleWord(timers[o] + 0x2C);
-                        if(ccr > 0)
-                        {
-                            pwmRun = true;
-                            d = Math.Min(1.0, ccr / (double)(arr + 1));
-                        }
+                        pwmRun = true;
+                        d = Math.Min(1.0, t.Ccr / (double)(t.Arr + 1));
                     }
                 }
                 on[o] = inPin[o] || pwmRun;
@@ -820,15 +816,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(ticks % 10 == 0)
             {
-                bool deep;
-                try
-                {
-                    deep = (sysbus.ReadDoubleWord(0xE000ED10) & 0x4) != 0;   // SCB->SCR.SLEEPDEEP
-                }
-                catch(Exception)
-                {
-                    deep = false;
-                }
+                TryReadBus(0xE000ED10, ref scbScr);              // SCB->SCR, non-blocking (see TryReadBus)
+                var deep = (scbScr & 0x4) != 0;                  // SLEEPDEEP
                 if(deep && !wasDeepSleep)
                 {
                     Emit("sleep");
@@ -1001,6 +990,49 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             f(ch, value);
         }
 
+        // Tick runs as a clock-entry callback, i.e. with this machine's clock source locked. A sysbus read
+        // takes the target's bus-access lock, and a CPU writing a timer (or SysTick) register holds that lock
+        // while it asks the clock source for its entry: the two waited on each other (seen under
+        // `emulation RunFor`: whole emulation frozen at 0 % CPU). So take the same lock without waiting and
+        // read the peripheral directly; when the CPU is mid-access, keep the previous value.
+        private bool TryReadBus(ulong addr, ref uint value)
+        {
+            if(!busTargets.TryGetValue(addr, out var t))
+            {
+                var locks = sysbus.GetType().GetField("peripheralAccessLocks", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(sysbus) as System.Collections.IDictionary;
+                var reg = sysbus.WhatIsAt(addr);
+                var p = reg?.Peripheral as IDoubleWordPeripheral;
+                var l = p != null && locks != null && locks.Contains(p.GetHashCode()) ? locks[p.GetHashCode()] : null;
+                t = (p != null && l != null) ? Tuple.Create(p, l, (long)(addr - reg.RegistrationPoint.Range.StartAddress)) : null;
+                busTargets[addr] = t;
+            }
+            if(t == null || !System.Threading.Monitor.TryEnter(t.Item2))
+            {
+                return false;
+            }
+            try
+            {
+                value = t.Item1.ReadDoubleWord(t.Item3);
+                return true;
+            }
+            finally
+            {
+                System.Threading.Monitor.Exit(t.Item2);
+            }
+        }
+
+        private void TryReadTimer(int o)
+        {
+            if(timerRegs == null) timerRegs = new TimerRegs[timers.Length];
+            var r = timerRegs[o];
+            TryReadBus(timers[o], ref r.Cr1);
+            TryReadBus(timers[o] + 0x2C, ref r.Arr);
+            TryReadBus(timers[o] + 0x34, ref r.Ccr);
+            timerRegs[o] = r;
+        }
+
+        private struct TimerRegs { public uint Cr1, Arr, Ccr; }
+
         private bool SafePeripheralAt(ulong addr)
         {
             try
@@ -1072,6 +1104,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly Queue<Action> pending = new Queue<Action>();
         private List<Load>[] outputs;
         private bool[] timerPresent;
+        private TimerRegs[] timerRegs;
+        private uint scbScr;
+        private readonly Dictionary<ulong, Tuple<IDoubleWordPeripheral, object, long>> busTargets = new Dictionary<ulong, Tuple<IDoubleWordPeripheral, object, long>>();
         private double vbatt, noisePct, boardTempC = 25;
         private long ticks, lastPulse = -1000;
         private bool wasDeepSleep;

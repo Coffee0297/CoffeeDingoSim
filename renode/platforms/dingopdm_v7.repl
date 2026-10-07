@@ -139,6 +139,19 @@ adc1: Analog.STM32_ADC @ sysbus 0x40012000
     IRQ -> nvic@18
     DMARequest -> dma2@4
 
+// ADC common registers (CSR/CCR/CDR): ChibiOS sets the prescaler and TSVREFE in CCR. Plain read-back store.
+adc_common: Python.PythonPeripheral @ sysbus 0x40012300
+    size: 0x100
+    initable: true
+    script: '''
+if request.IsInit:
+    regs = {}
+elif request.IsWrite:
+    regs[request.Offset] = request.Value
+elif request.IsRead:
+    request.Value = regs.get(request.Offset, 0)
+'''
+
 // ---------------- CAN ----------------
 can1: CAN.STMCAN @ sysbus <0x40006400, +0x400>
     [0-3] -> nvic@[19-22]

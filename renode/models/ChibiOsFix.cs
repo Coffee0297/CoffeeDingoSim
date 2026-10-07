@@ -13,13 +13,25 @@
 // recomputed (set when at most one exception is active: NVIC IABR0..7 + SHCSR active bits).
 // Located from the ELF symbol, so it survives firmware rebuilds; patch is in RAM-backed flash only.
 //
+// Second bug, same root (Renode NVIC bookkeeping): an external IRQ can stay marked ACTIVE in IABR after
+// its handler has returned (seen on CAN1 RX0 under bus load: ICSR.VECTACTIVE = 36 while the CPU ran the
+// idle thread). Every later ISR then counts two active exceptions, the recomputed RETTOBASE stays 0,
+// no ISR ever preempts again, and the module sits in the idle thread with its threads READY and its CAN
+// FIFO full, silent on the bus. Install() also adds a 1 kHz check: if the CPU is in Thread mode
+// (IPSR = 0) no exception can be active, so any active bit is stale and is completed in the NVIC; the
+// pending interrupts then run and their epilogue preempts as usual. StaleActiveCleared counts repairs.
+//
 // repl:     chibiosFix: Miscellaneous.ChibiOsFix @ sysbus 0x5FFF1000
 // monitor:  sysbus.chibiosFix Install          (after sysbus LoadELF, before start)
 //
 using System;
+using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -37,10 +49,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public ulong PatchedLiteralAddress { get; private set; }
         public ulong Redirects { get; private set; }   // ISR exits that were allowed to preempt
+        public ulong StaleActiveCleared { get; private set; }   // stale NVIC active bits completed
 
         public uint ReadDoubleWord(long offset)
         {
             var bus = machine.SystemBus;
+            if(offset == 0xC)
+            {
+                return (uint)StaleActiveCleared;   // diagnostics only: the patched epilogue reads offset 4 alone
+            }
             if(offset != 4)
             {
                 return bus.ReadDoubleWord(0xE000ED00 + (ulong)offset);
@@ -99,10 +116,46 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     bus.WriteDoubleWord(a, (uint)windowAddress);
                     PatchedLiteralAddress = a;
+                    InstallStaleActiveCheck();
                     return Report(string.Format("ChibiOsFix: literal 0xE000ED00 at 0x{0:X8} -> 0x{1:X8} (ICSR.RETTOBASE recomputed)", a, windowAddress));
                 }
             }
             return Report("ChibiOsFix: SCB literal not found near __port_irq_epilogue; not patched");
+        }
+
+        // Idempotent: Install() runs again after every module reset.
+        private void InstallStaleActiveCheck()
+        {
+            cpu = machine.SystemBus.GetCPUs().OfType<CortexM>().FirstOrDefault();
+            nvic = machine.GetPeripheralsOfType<NVIC>().FirstOrDefault();
+            if(cpu == null || nvic == null)
+            {
+                return;
+            }
+            machine.ClockSource.TryRemoveClockEntry(ClearStaleActive);
+            machine.ClockSource.AddClockEntry(new ClockEntry(period: 1, frequency: 1000, handler: ClearStaleActive,
+                owner: this, localName: "chibios-stale-active", enabled: true, workMode: WorkMode.Periodic));
+        }
+
+        private void ClearStaleActive()
+        {
+            if((cpu.XProgramStatusRegister & 0x1FF) != 0)
+            {
+                return;   // in a handler: active bits may be genuine
+            }
+            var bus = machine.SystemBus;
+            for(var w = 0; w < 8; w++)
+            {
+                var active = bus.ReadDoubleWord(0xE000E300 + 4 * (ulong)w);
+                for(var b = 0; active != 0 && b < 32; b++, active >>= 1)
+                {
+                    if((active & 1) != 0)
+                    {
+                        nvic.CompleteIRQ(16 + 32 * w + b);   // exception number = IRQ + 16
+                        StaleActiveCleared++;
+                    }
+                }
+            }
         }
 
         private string Report(string msg)
@@ -124,5 +177,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private readonly IMachine machine;
         private readonly ulong windowAddress;
+        private CortexM cpu;
+        private NVIC nvic;
     }
 }

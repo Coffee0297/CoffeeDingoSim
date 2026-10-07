@@ -217,6 +217,7 @@ export function generateResc(scene, firmwarePaths, opt = {}) {
   if (!machines.length) throw new Error(`scene ${name}: no module can be simulated (${skipped.map((s) => `${s.id}: ${s.reason}`).join('; ') || 'no modules'})`);
   const text = tpl(carT, {
     scene: name, hub: o.hub, bridgePort: o.bridgePort, bankPort: o.bankPort, monitorPort: o.monitorPort,
+    models: fwd(path.join(ROOT, 'renode', 'models')), modelsAnchor: fwd(path.join(ROOT, 'renode', 'platforms', 'canboard_v2.repl')),
     machines: machines.join('\n'),
   });
   const out = path.join(outDir, `${name}.resc`);
@@ -408,6 +409,7 @@ export function createRenode(opts = {}) {
     if (proc) await stop();
     scene = sc;
     freeRunning = false;
+    vtime = 0;   // a new Renode process starts at 0: a stale value froze the UI clock and tripped the bring-up stall watchdog
     try {
       const exe = opts.exe || await ensureRenode({ onStatus: (s) => set(s), onLog });
       flags ||= await probeFlags(exe);
@@ -487,6 +489,19 @@ export function createRenode(opts = {}) {
     get freeRunning() { return freeRunning; },
     get generated() { return generated; },
     start, stop, kill, readVtime,
+    /** Read-only CPU snapshot of one module (diagnosing a module that went silent): PC, halted, instructions run. */
+    async inspect(module, read = []) {
+      const ask = async (c) => cleanMonitor(await need().cmd(c)).split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('(')).pop() ?? '';
+      if (!generated?.modules?.includes(module)) throw new Error(`inspect: no simulated module ${module}`);
+      await checked(`mach set "${module}"`);
+      try {
+        return { module, pc: await ask('cpu PC'), halted: await ask('cpu IsHalted'), basepri: await ask('cpu BasePri'), primask: await ask('cpu PRIMASK'), xpsr: await ask('cpu XProgramStatusRegister'), instructions: await ask('cpu ExecutedInstructions'),
+          // read-only: addresses are numbers, formatted here, never raw monitor text
+          read: Object.fromEntries(await Promise.all([].concat(read).filter(Number.isFinite).map(async (a) => ['0x' + a.toString(16), await ask(`sysbus ReadDoubleWord 0x${a.toString(16)}`)]))) };
+      } finally { await need().cmd('mach clear'); }
+    },
+    /** Per-receiver delivery counters of the paced vehicle hub (renode/models/PacedCANHub.cs). */
+    async hubStats(watch) { if (Number.isInteger(watch)) await need().cmd(`${DEFAULTS.hub} WatchId ${watch}`); return cleanMonitor(await need().cmd(`${DEFAULTS.hub} Stats`)); },
     async pause() { await need().cmd('pause'); freeRunning = false; await readVtime(); set('paused'); },
     async resume() { await need().cmd('start'); freeRunning = true; set('running'); },
     /** Advance virtual time by `seconds` (pauses a running emulation first; returns when done). */

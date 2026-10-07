@@ -22,18 +22,24 @@ sysbus.flash_controller Filename @${nv}
 ${canConnect}
 # the bank listens to hub traffic for the CAN-RX wake pulse
 connector Connect sysbus.loadBank ${hub}
-mach clear
-
-# Module reset. `machine Reset` alone wipes the loaded ELF and the ROM cal words, and LoadELF zero-fills
-# the config sector, so the server runs this macro instead (runMacro $${macro}).
-macro ${macro}
+# Per-machine reset hook: Renode runs `<machine>.reset` after EVERY reset of this machine, including the
+# firmware's own NVIC system reset (after a burn, a bootloader jump, the watchdog). Without it the reset
+# wipes the ELF and the module goes silent on the bus. Defined while this machine is current.
+macro reset
 """
-mach set "${name}"
-machine Reset
 sysbus LoadELF @${elf}
 sysbus.chibiosFix Install
 cpu VectorTableOffset 0x08004000
 sysbus.flash_controller Load
 ${calWords}
+"""
+mach clear
+
+# Module reset. `machine Reset` alone wipes the loaded ELF and the ROM cal words, and LoadELF zero-fills
+# the config sector, so the server runs this macro instead (runMacro $${macro}); the reload itself is the reset hook above.
+macro ${macro}
+"""
+mach set "${name}"
+machine Reset
 mach clear
 """

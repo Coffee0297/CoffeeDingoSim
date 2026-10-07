@@ -109,12 +109,19 @@ export function setTelemetry(moduleId, patch) {
   return next;
 }
 
+let lastClockBroadcast = 0;
+
 /** Store a bank trace (ring) and broadcast the `trace` message. */
 export function pushTrace(trace) {
   const ring = (state.traces[trace.machine] ||= []);
   ring.push(trace);
   if (ring.length > TRACE_RING) ring.splice(0, ring.length - TRACE_RING);
-  if (typeof trace.t === 'number' && trace.t > state.renode.vtime) state.renode.vtime = trace.t;
+  if (typeof trace.t === 'number' && trace.t > state.renode.vtime) {
+    state.renode.vtime = trace.t;
+    // the UI clock follows `renode` messages, which otherwise go out only on a status change or log line
+    const now = Date.now();
+    if (now - lastClockBroadcast >= 250) { lastClockBroadcast = now; broadcast({ type: 'renode', vtime: state.renode.vtime }); }
+  }
   broadcast({ type: 'trace', machine: trace.machine, t: trace.t, i: trace.i, peak: trace.peak, on: trace.on, duty: trace.duty, do: trace.do, di: trace.di, mV: trace.mV });
 }
 

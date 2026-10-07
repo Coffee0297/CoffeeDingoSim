@@ -6,8 +6,10 @@
 //   client -> hub : the same frame commands; O C S<n> L F Z<n> -> "\r"; V -> "V1013\r";
 //                   N -> "NSIM0\r"; anything else -> "\a"
 //
-// Frames from the socket are queued and injected from a 1 kHz virtual-time clock entry, so they
-// enter the emulation on the machine thread and in emulated time order.
+// Frames from the socket are queued and injected from a virtual-time clock entry, one frame per ms (the
+// rate of a USB/serial SLCAN adapter), so they enter the emulation on the machine thread, in emulated time
+// order, and no faster than a real adapter delivers them. Injecting a host burst in one tick overflowed the
+// receivers (a 600-frame WriteAll reached a CANBoard as 4 frames; at full 500 kbit/s line rate, 589).
 //
 // It is a sysbus peripheral only so it has a machine and a clock (the 4-byte window reads
 // FramesSeen). Add it to any one machine:
@@ -37,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             Port = port;
             machine.ClockSource.AddClockEntry(new ClockEntry(
                 period: 1,
-                frequency: 1000,
+                frequency: InjectRateHz,
                 handler: DrainInbound,
                 owner: this,
                 localName: "slcan-inject",
@@ -54,6 +56,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         }
 
         public int Port { get; }
+        private const ulong InjectRateHz = 1000;   // one frame per ms of virtual time (a USB/serial SLCAN adapter)
         public ulong FramesSeen => Interlocked.Read(ref framesSeen);      // hub -> client
         public ulong FramesInjected => Interlocked.Read(ref framesInjected); // client -> hub
         public bool ClientConnected => client != null;
@@ -84,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private void DrainInbound()
         {
-            while(inbound.TryDequeue(out var frame))
+            if(inbound.TryDequeue(out var frame))   // ponytail: fixed adapter pacing; make it a constructor parameter if a faster adapter must be modelled
             {
                 Interlocked.Increment(ref framesInjected);
                 this.Log(LogLevel.Debug, "tcp->hub {0}", Encode(frame).TrimEnd('\r'));

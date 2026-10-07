@@ -211,6 +211,8 @@ UI → server:
 { "type": "action", "action": { "kind": "engine", "node": "n6", "state": "run", "throttle": 20 } }
 { "type": "action", "action": { "kind": "temp", "module": "PDM-03", "c": 85 } }
 { "type": "action", "action": { "kind": "renode", "cmd": "start|stop|pause|resume|runfor|reset|sleep|wake", "seconds": 60, "module": "PDM-03" } }
+{ "type": "action", "action": { "kind": "renode", "cmd": "inspect", "module": "CB-1", "read": [1073767436] } }   // PC, BASEPRI, PRIMASK, xPSR + sysbus words (diagnostics)
+{ "type": "action", "action": { "kind": "renode", "cmd": "hubstats", "watch": 1633 } }   // per-module CAN delivery counters (PacedCANHub); watch = count one id
 { "type": "populate", "projectPath": "..." }
 { "type": "record", "cmd": "start|stop|replay|golden|diff", "run": "2026-10-06T10-00-00.run.json" }
 ```
