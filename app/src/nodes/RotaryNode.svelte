@@ -2,13 +2,16 @@
   // Rotary knob → CANBoard analog input (`wiper` source). Positions and mV come from the project's
   // ladder; picking one sends an immediate `rotary` action.
   import { Handle, Position, useSvelteFlow } from '@xyflow/svelte';
-  import { action } from '../ws.js';
+  import { action, scene } from '../ws.js';
+  import { wiredInput } from '../scene.js';
+  import EditableTitle from './EditableTitle.svelte';
 
   let { id, data, selected } = $props();
   const { updateNodeData } = useSvelteFlow();
 
   const positions = $derived(data.positions || []);
   const idx = $derived(Math.min(Math.max(0, data.index || 0), Math.max(0, positions.length - 1)));
+  const wired = $derived(wiredInput($scene?.edges, id));
   const SWEEP = 270;
   const angleOf = (i) => (positions.length <= 1 ? 0 : -SWEEP / 2 + (SWEEP * i) / (positions.length - 1));
 
@@ -28,7 +31,8 @@
 </script>
 
 <div class="node rotary" class:selected>
-  <div class="node-head"><span>Rotary knob</span><span class="spacer"></span><span class="pos">{positions[idx]?.name ?? '—'}</span></div>
+  <div class="node-head"><EditableTitle value={data.name} placeholder="Rotary knob" onsave={(v) => updateNodeData(id, { name: v })} /><span class="spacer"></span><span class="pos">{positions[idx]?.name ?? '—'}</span></div>
+  <div class="wired faint">{wired ? `knob → ${wired}` : 'knob, not wired'}</div>
   <div class="body nodrag nowheel">
     <svg viewBox="0 0 100 100" class="dial" {onwheel} role="slider" tabindex="0" aria-valuemin="0" aria-valuemax={positions.length - 1}
       aria-valuenow={idx} aria-valuetext={positions[idx]?.name}
@@ -54,6 +58,7 @@
 </div>
 
 <style>
+  .wired { padding: 0 10px 4px; font-size: 11px; margin-top: -4px; }
   .rotary {
     width: 250px;
   }

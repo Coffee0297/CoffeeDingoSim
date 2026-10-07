@@ -30,12 +30,13 @@
   const hex = (v) => '0x' + Number(v || 0).toString(16).toUpperCase().padStart(3, '0');
 </script>
 
-<div class="node module" class:selected class:asleep={tel?.asleep} data-kind={m.kind}>
+<div class="node module" class:selected class:asleep={tel?.asleep} class:silent={tel?.silent && !tel?.asleep} data-kind={m.kind}>
   <div class="node-head">
     <span class="kind">{KIND_LABEL[m.kind] || m.kind}</span>
     <span class="name">{m.id}</span>
     <span class="spacer"></span>
-    {#if tel?.asleep}<span class="badge info">Asleep</span>{/if}
+    {#if tel?.asleep}<span class="badge info">Asleep</span>
+    {:else if tel?.silent}<span class="badge warn" title={tel.silentWhy ?? 'No CAN frames from this module: it may still be driving its outputs'}>No CAN</span>{/if}
     <span class="base num">{hex(m.baseId)}</span>
   </div>
 
@@ -110,6 +111,9 @@
   }
   .module.asleep {
     opacity: 0.65;
+  }
+  .module.silent {
+    border-color: color-mix(in srgb, var(--st-warn) 70%, var(--line));
   }
   .node-head {
     background: var(--raised);

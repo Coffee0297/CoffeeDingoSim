@@ -12,6 +12,7 @@
   } from './scene.js';
   import FaultMenu from './FaultMenu.svelte';
   import { arrange } from '../../lib/layout.js';
+  import { pinConfig } from '../../lib/populate.js';
   import ModuleNode from './nodes/ModuleNode.svelte';
   import LoadNode from './nodes/LoadNode.svelte';
   import SwitchNode from './nodes/SwitchNode.svelte';
@@ -108,8 +109,21 @@
   function onbeforeconnect(c) {
     const r = validateConnection(base, sceneEdges(), c);
     if (!r.ok) { flashHint(r.reason); return false; }
+    inheritFromPin(c);
     return { id: nextId('e', edges), source: c.source, target: c.target, sourceHandle: c.sourceHandle, targetHandle: c.targetHandle };
   }
+  // A card wired to a module pin takes over that pin's name and behaviour from the project
+  // (switch: toggle/momentary + level, knob: positions, load: the output name as its label).
+  function inheritFromPin(c) {
+    const mod = base?.modules?.find((m) => m.id === c.target);
+    const node = nodes.find((x) => x.id === c.source);
+    const cfg = mod && node ? pinConfig(mod, c.targetHandle) : null;
+    if (!cfg || cfg.type !== node.type) return;
+    const patch = node.type === 'rotary' ? { ...cfg.data, index: 0 } : node.type === 'load' ? { ...cfg.data, name: null } : cfg.data;
+    nodes = nodes.map((x) => (x.id === node.id ? { ...x, data: { ...x.data, ...patch } } : x));
+    flashHint(`${node.type === 'load' ? 'Load' : node.type === 'rotary' ? 'Knob' : 'Switch'} named "${cfg.data.name ?? cfg.data.label}" from ${c.target} ${c.targetHandle}`);
+  }
+
   function onconnectend(_event, state) {
     if (state && state.isValid === false && lastReason) flashHint(lastReason);
   }

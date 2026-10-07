@@ -116,6 +116,11 @@ node renode/test/mon.mjs start
     writing a timer/SysTick register holds that lock while asking the clock source. `ProfetLoadBank` reads
     PWM timers and SCB->SCR with `TryReadBus` (`Monitor.TryEnter` on sysbus's private per-peripheral lock,
     keeping the last value when busy); it froze the emulation under `emulation RunFor`.
+17. **Rare UsageFault on ChibiOS's ISR exit.** About once per half hour of 7-module running, one module faulted
+    with CFSR INVSTATE (0x00020000), stacked PC just after the `svc 0` in `__port_exit_from_isr`, stacks
+    intact: the fake-return-frame path under Renode's exception emulation (see 2 and 12). Not found yet.
+    The server reads the CPU of any module that falls silent (`[sim] X stopped sending: ...` in the log)
+    and resets one stuck in a fault handler, as a watchdog would on hardware (the firmware has none).
 
 ## Not verified / open
 

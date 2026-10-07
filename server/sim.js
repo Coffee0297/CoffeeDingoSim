@@ -102,7 +102,35 @@ export async function createSim(opts = {}) {
   bus.on('connect', () => { state.bus.connected = true; busLink.up(); });
   bus.on('disconnect', () => { state.bus.connected = false; busLink.down(); });
   bus.on('line', (l) => { for (const b of bridges) b.fromHub(l); });
-  bus.on('telemetry', (t) => { S.setTelemetry(t.module, t); recorder.telemetry(t); });
+  bus.on('telemetry', (t) => {
+    const was = state.modules[t.module]?.silent;
+    S.setTelemetry(t.module, t);
+    recorder.telemetry(t);
+    if (t.silent && !was && !t.asleep) diagnoseSilent(t.module);
+  });
+  // A module that stops sending CAN without going to sleep: read its CPU once and say why. Exception
+  // 3 = HardFault (the firmware has no handler or watchdog: it sits there with its outputs latched).
+  const EXC = { 2: 'NMI', 3: 'HardFault', 4: 'MemManage', 5: 'BusFault', 6: 'UsageFault', 11: 'SVCall', 14: 'PendSV', 15: 'SysTick' };
+  // A CPU stuck in a fault handler is reset, as a watchdog would on a real module (the firmware has none):
+  // seen as a rare UsageFault INVSTATE on ChibiOS's ISR-exit path under Renode (renode/README.md).
+  const FAULTS = new Set([2, 3, 4, 5, 6]);
+  async function diagnoseSilent(module) {
+    let why = 'no CAN frames for 2 s of vehicle time';
+    let fault = false;
+    try {
+      const c = await renode.inspect(module, [0xE000ED28]);   // CFSR
+      const ipsr = Number(c.xpsr) & 0x1ff;
+      fault = FAULTS.has(ipsr);
+      why += ipsr ? `; CPU stuck in ${EXC[ipsr] ?? (ipsr >= 16 ? `IRQ ${ipsr - 16}` : `exception ${ipsr}`)} at PC ${c.pc}${fault ? `, CFSR ${c.read?.['0xe000ed28']}` : ''}`
+                  : `; CPU in thread mode at PC ${c.pc} (BASEPRI ${c.basepri}, PRIMASK ${c.primask})`;
+    } catch (e) { why += ` (CPU not readable: ${e.message})`; }
+    S.renodeLog(`[sim] ${module} stopped sending: ${why}`);
+    if (state.modules[module]?.silent) S.setTelemetry(module, { silentWhy: why });
+    if (!fault) { toast('warn', `${module} stopped sending CAN — ${why}`); return; }
+    toast('warn', `${module} crashed (${why}) — reset, as a watchdog would`);
+    try { await api.resetModule(module); S.renodeLog(`[sim] ${module} reset after the fault`); }
+    catch (e) { S.renodeLog(`[sim] ${module} reset after the fault failed: ${e.message}`); }
+  }
 
   let busWindow = 0, busCount = 0, busDropped = 0;
   bus.on('frame', (f) => {
@@ -259,6 +287,7 @@ export async function createSim(opts = {}) {
       for (let attempt = 1; ; attempt++) {
         const isolate = bringup ? modulesToIsolate(candidates, nvDir) : [];
         state.renode.vtime = 0; // a new Renode process starts at virtual time 0
+        for (const k of Object.keys(state.modules)) delete state.modules[k];   // no stale outputs / asleep from the last run
         const r = await renode.start(state.scene, firmwarePaths, { paused: !!paused, isolate, only, nvDir });
         if (!bringup) return r;
         let pumping = !!paused, stalled = false;

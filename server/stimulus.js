@@ -180,6 +180,12 @@ export async function createStimulus(ctx) {
           ctx.bank.gpio(l.module, `DI${l.n}`, value);
           sent.push({ gpio: l.module, pin: `DI${l.n}`, value });
         }
+        // a switch on an analog input pulls it to the supply (5 V sensor rail) or leaves it at 0 V
+        for (const l of moduleLinks(scene(), n.id, 'ai:')) {
+          const mV = a.state ? 5000 : 0;
+          ctx.bank.adc(l.module, l.n, mV);
+          sent.push({ adc: l.module, ch: l.n, mV });
+        }
         break;
       }
       case 'rotary': {

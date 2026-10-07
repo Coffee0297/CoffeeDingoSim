@@ -39,7 +39,10 @@ function serveStatic(req, res) {
   let p = path.normalize(path.join(DIST, url));
   if (!p.startsWith(DIST)) { res.writeHead(403); return res.end(); }
   if (!fs.existsSync(p) || fs.statSync(p).isDirectory()) p = path.join(DIST, 'index.html'); // SPA fallback
-  res.writeHead(200, { 'Content-Type': MIME[path.extname(p)] || 'application/octet-stream' });
+  // index.html must be revalidated or the browser keeps an old page pointing at an old bundle after a rebuild;
+  // Vite's hashed assets/ files change name with their content and can be cached for good
+  const cache = /[\\/]assets[\\/]/.test(p) ? 'public, max-age=31536000, immutable' : 'no-cache';
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(p)] || 'application/octet-stream', 'Cache-Control': cache });
   fs.createReadStream(p).pipe(res);
 }
 

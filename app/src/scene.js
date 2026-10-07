@@ -32,6 +32,7 @@ export const RULES = [
   { from: ['load', 'supply'], to: ['engine', 'fan'] },
   { from: ['wiper', 'supply'], to: ['module', 'out'] },
   { from: ['switch', 'contact'], to: ['module', 'di'], oneSource: true },
+  { from: ['switch', 'contact'], to: ['module', 'ai'], oneSource: true },   // an analog input in switch mode
   { from: ['wiper', 'park'], to: ['module', 'di'], oneSource: true },
   { from: ['rotary', 'wiper'], to: ['module', 'ai'], oneSource: true },
   { from: ['module', 'do'], to: ['wiper', 'run'], oneSource: true },
@@ -298,4 +299,22 @@ export function keywordComponent(outputName) {
 
 export function componentById(list, id) {
   return (list || []).find((c) => c.id === id) || BUILTIN_COMPONENTS.find((c) => c.id === id) || null;
+}
+
+/**
+ * Card name of a load from its populate label: `Right Low Beam x2 (1/2)` → `Right Low Beam · bulb 1 of 2`
+ * (one of several loads on an output), otherwise the label as is.
+ */
+export function loadTitle(label, isLight = false) {
+  if (!label) return '';
+  const m = /^(.*?)(?:\s+x\d+)?\s*\((\d+)\/(\d+)\)$/.exec(String(label));
+  return m ? `${m[1]} · ${isLight ? 'bulb' : 'part'} ${m[2]} of ${m[3]}` : String(label);
+}
+
+/** What a stimulus node is wired to: `CB-1 DI2`, `CB-1 AI1`, or null. */
+export function wiredInput(edges, nodeId) {
+  const e = (edges || []).find((x) => x.from?.node === nodeId && /^(di|ai):/.test(x.to?.handle || ''));
+  if (!e) return null;
+  const [kind, n] = e.to.handle.split(':');
+  return `${e.to.node} ${kind.toUpperCase()}${n}`;
 }

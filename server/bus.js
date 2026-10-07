@@ -47,7 +47,7 @@ export async function createBus(opts = {}) {
     return {
       module: module.id, t: 0,
       outputs: Array.from({ length: n }, (_, i) => ({ n: i + 1, state: 'Off', currentA: 0, duty: 0, ocCount: 0 })),
-      inputs: [], positions: [], digitalOut: [], mV: [], asleep: false, vbattV: null, tempC: null, extra: {},
+      inputs: [], positions: [], digitalOut: [], mV: [], asleep: false, silent: false, vbattV: null, tempC: null, extra: {},
     };
   }
 
@@ -84,7 +84,9 @@ export async function createBus(opts = {}) {
     if (!e.flushTimer) e.flushTimer = setTimeout(() => flush(e), flushIntervalMs);
   }
   /**
-   * "asleep" = no frame from the module for sleepAfterMs of VIRTUAL time when the time source runs
+   * "silent" = no frame from the module for sleepAfterMs of VIRTUAL time when the time source runs
+   * (not "asleep": only the firmware says that, DeviceState = Sleep / the bank's deep-sleep event; a
+   * module that stopped talking may still be driving its outputs)
    * (getTime() > 0): Renode runs slower than real time, and a paused / RunFor-stepped emulation has
    * host-time gaps that are not silences. Without a time source it falls back to host time.
    */
@@ -99,7 +101,7 @@ export async function createBus(opts = {}) {
         e.sleepTimer.unref?.();
         return;
       }
-      if (!e.tel.asleep) { e.tel.asleep = true; markDirty(e); }
+      if (!e.tel.silent) { e.tel.silent = true; markDirty(e); }
     };
     e.sleepTimer = setTimeout(check, sleepAfterMs);
     e.sleepTimer.unref?.();
@@ -114,7 +116,7 @@ export async function createBus(opts = {}) {
     if (frame.ext) return null;
     for (const [base, e] of byBase) {
       if (frame.id < base || frame.id >= base + idSpan(e.module.kind)) continue;
-      if (e.tel.asleep) { e.tel.asleep = false; e.dirty = true; }
+      if (e.tel.asleep || e.tel.silent) { e.tel.asleep = false; e.tel.silent = false; e.tel.silentWhy = undefined; e.dirty = true; }
       armSleep(e);
       if (frame.id < base + 2) { markDirty(e); return e.module; } // config traffic: alive, nothing to decode
       const r = e.decode(frame, base);

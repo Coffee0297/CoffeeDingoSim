@@ -45,3 +45,16 @@ test('ids, presets and keywords', () => {
   assert.equal(keywordComponent('Fuel Pump').id, 'fuel_pump');
   assert.equal(keywordComponent('Spare'), null);
 });
+
+test('load card titles name the bulb, wired inputs name the pin', async () => {
+  const { loadTitle, wiredInput } = await import('../app/src/scene.js');
+  assert.equal(loadTitle('Right Low Beam x2 (1/2)', true), 'Right Low Beam · bulb 1 of 2');
+  assert.equal(loadTitle('Wiper Motor (2/2)'), 'Wiper Motor · part 2 of 2');
+  assert.equal(loadTitle('Horn'), 'Horn');
+  assert.equal(loadTitle(undefined), '');
+  const edges = [{ from: { node: 'CB-1.di2', handle: 'contact' }, to: { node: 'CB-1', handle: 'di:2' } },
+    { from: { node: 'CB-1.ai1', handle: 'wiper' }, to: { node: 'CB-1', handle: 'ai:1' } }];
+  assert.equal(wiredInput(edges, 'CB-1.di2'), 'CB-1 DI2');
+  assert.equal(wiredInput(edges, 'CB-1.ai1'), 'CB-1 AI1');
+  assert.equal(wiredInput(edges, 'nope'), null);
+});

@@ -158,7 +158,7 @@ test("bank: a {type:'error'} reply is a 'bankError' event, not a thrown EventEmi
   await fake.close();
 });
 
-test('bus: asleep is judged in virtual time (a paused emulation is not a silent module)', async () => {
+test('bus: silence is judged in virtual time (a paused emulation is not a silent module)', async () => {
   let vt = 5;
   const bus = await createBus({ port: 1, flushIntervalMs: 0, sleepAfterMs: 100, getTime: () => vt });
   bus.setModules([{ id: 'PDM-01', kind: 'pdm', baseId: 0x680 }]);
@@ -166,8 +166,9 @@ test('bus: asleep is judged in virtual time (a paused emulation is not a silent 
   bus.on('telemetry', (t) => tel.push(t));
   bus.feedLine('t68280000000000000000');
   await new Promise((r) => setTimeout(r, 400));          // host time passes, virtual time does not
-  assert.equal(tel.at(-1).asleep, false);
+  assert.equal(tel.at(-1).silent, false);
   vt = 5.5;                                               // 500 ms of virtual silence
-  await until(() => tel.at(-1).asleep === true, 2000);
+  await until(() => tel.at(-1).silent === true, 2000);
+  assert.equal(tel.at(-1).asleep, false);                 // silent is not asleep: only the firmware says that
   bus.stop();
 });

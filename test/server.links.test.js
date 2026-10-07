@@ -85,8 +85,9 @@ test('bus: SLCAN lines reassembled across chunks and Msg1 decoded into telemetry
   assert.equal(last.outputs[0].state, 'Overcurrent'); // Msg3 byte0 = 0x12: out1 = 2, out2 = 1
   assert.equal(last.outputs[1].state, 'On');
   assert.equal(last.asleep, false);
-  // silence → asleep
-  await until(() => tel.at(-1).asleep === true, 1000);
+  // silence → silent (not asleep: the module may still be driving its outputs)
+  await until(() => tel.at(-1).silent === true, 1000);
+  assert.equal(tel.at(-1).asleep, false);
   // inject goes out as SLCAN
   bus.inject({ id: 0x681, dlc: 8, data: [31, 0, 0, 0, 0, 0, 0, 0] });
   await fake.waitLine((l) => l === 't68181F00000000000000');

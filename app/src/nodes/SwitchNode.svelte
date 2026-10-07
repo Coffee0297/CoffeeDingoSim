@@ -2,7 +2,9 @@
   // Switch → digital input (`contact` source). toggle: click flips; momentary: held while pressed;
   // 3pos: state 0 | 1 | 2 (0 = centre/open). Every change is an immediate `switch` action.
   import { Handle, Position, useSvelteFlow } from '@xyflow/svelte';
-  import { action } from '../ws.js';
+  import { action, scene } from '../ws.js';
+  import { wiredInput } from '../scene.js';
+  import EditableTitle from './EditableTitle.svelte';
 
   let { id, data, selected } = $props();
   const { updateNodeData } = useSvelteFlow();
@@ -16,13 +18,16 @@
     action({ kind: 'switch', node: id, state: kind === '3pos' ? 0 : false });
   }
   const on = $derived(data.kind === '3pos' ? data.state !== 0 : !!data.state);
+  const wired = $derived(wiredInput($scene?.edges, id));
 </script>
 
 <div class="node switch" class:selected>
   <div class="node-head">
-    <span>Switch</span><span class="spacer"></span>
+    <EditableTitle value={data.name} placeholder="Switch" onsave={(v) => updateNodeData(id, { name: v })} />
+    <span class="spacer"></span>
     <span class="state-dot" class:bool-on={on}></span>
   </div>
+  <div class="wired faint">{wired ? `switch → ${wired}` : 'switch, not wired'}</div>
   <div class="node-controls nodrag">
     <select class="input" value={data.kind} onchange={(e) => setKind(e.currentTarget.value)} aria-label="Switch type">
       <option value="toggle">Toggle</option><option value="momentary">Momentary</option><option value="3pos">3-position</option>
@@ -59,6 +64,7 @@
   .switch {
     width: 190px;
   }
+  .wired { padding: 0 10px 4px; font-size: 11px; margin-top: -4px; }
   .control {
     padding: 4px 10px 10px;
   }

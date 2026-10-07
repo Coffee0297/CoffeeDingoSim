@@ -5,7 +5,8 @@
   import { Handle, Position, useSvelteFlow } from '@xyflow/svelte';
   import { components, scene, traces } from '../ws.js';
   import { contextMenu } from '../ui.js';
-  import { componentById, NOMINAL_V, FAULT_LABEL, handleIndex } from '../scene.js';
+  import { componentById, NOMINAL_V, FAULT_LABEL, handleIndex, loadTitle } from '../scene.js';
+  import EditableTitle from './EditableTitle.svelte';
   import { fmtA } from '../chart.js';
   import Spark from '../Spark.svelte';
   import Icon from '../Icon.svelte';
@@ -90,20 +91,31 @@
     if (!(a >= 0)) return;
     updateNodeData(id, { ratedA: a, ratedW: +(a * NOMINAL_V).toFixed(1), guess: false });
   }
+  // What this load is (its own name, else the output's), and whether it is drawing current right now.
+  const isLight = $derived(/^lighting$/i.test(comp?.group ?? ''));
+  const title = $derived(data.name || loadTitle(data.label, isLight) || outName || comp?.name || data.component);
+  let lit = $state(false);
+  $effect(() => {
+    const t = setInterval(() => { lit = (points().at(-1)?.[1] ?? 0) > 0.05; }, 200);
+    return () => clearInterval(t);
+  });
+
   function openFaultMenu(e) {
     const r = e.currentTarget.getBoundingClientRect();
     contextMenu.set({ x: r.left, y: r.bottom + 4, nodeId: id });
   }
 </script>
 
-<div class="node load" class:selected class:faulted={!!data.fault}>
+<div class="node load" class:selected class:faulted={!!data.fault} class:lit class:light={isLight}>
   <Handle type="source" position={Position.Left} id="supply" class="handle-out" />
   <div class="node-head">
     <span class="icon"><Icon name={comp?.icon || 'generic'} /></span>
-    <span class="title">{comp?.name || data.component}</span>
+    <EditableTitle value={title} onsave={(v) => updateNodeData(id, { name: v })} />
     <span class="spacer"></span>
     {#if data.guess}<span class="badge guess" title="No keyword matched the output name; sized at 60 % of the current limit">Guess</span>{/if}
+    <span class="onoff" class:on={lit}>{lit ? 'ON' : 'OFF'}</span>
   </div>
+  <div class="kind faint">{comp?.name || data.component}</div>
   <div class="node-controls nodrag">
     <select class="input preset" value={data.preset ?? ''} onchange={(e) => setPreset(e.currentTarget.value)} aria-label="Preset">
       {#if !data.preset}<option value="">Custom</option>{/if}
@@ -142,7 +154,6 @@
     {/if}
   </div>
   {#if precheck}<div class="precheck" class:warn={precheck.level === 'warn'}>{precheck.text}</div>{/if}
-  {#if outName}<div class="out-name faint">{outName}</div>{/if}
 </div>
 
 <style>
@@ -158,11 +169,6 @@
   .icon {
     display: inline-flex;
     color: var(--accent);
-  }
-  .title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .preset {
     width: 100%;
@@ -193,8 +199,13 @@
   .precheck.warn {
     color: color-mix(in srgb, var(--st-warn) 80%, var(--ink));
   }
-  .out-name {
-    padding: 0 10px 8px;
-    font-size: 11px;
-  }
+  .kind { padding: 0 10px 4px; font-size: 11px; margin-top: -4px; }
+  /* drawing current: lights glow amber, everything else green; the icon lights up too */
+  .load { --lit: var(--st-on); transition: box-shadow 0.15s, border-color 0.15s; }
+  .load.light { --lit: #ffb627; }
+  .load.lit { border-color: var(--lit); box-shadow: 0 0 0 1px var(--lit), 0 0 18px color-mix(in srgb, var(--lit) 55%, transparent); }
+  .load.lit .icon { color: var(--lit); filter: drop-shadow(0 0 4px var(--lit)); }
+  .onoff { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--line-strong); color: var(--muted); }
+  .onoff.on { background: var(--lit); border-color: var(--lit); color: #1a1200; }
 </style>
