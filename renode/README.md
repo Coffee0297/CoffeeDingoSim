@@ -128,7 +128,9 @@ node renode/test/mon.mjs start
     handler (IPSR 76, IRQ 60 active, nothing pending), `IsHalted` False, `ExecutedInstructions` frozen while
     the module's timers kept counting. ChibiOS's idle loop never WFIs, so a frozen counter outside deep sleep
     means the core stopped; the silent-module check reads the counter twice and resets it like 17.
-    Same cause as 17: not seen since that fix. The fault/wedge resets stay as a watchdog.
+    Not the cause of 17 after all: still seen after that fix (PDM-01/04 during a full redeploy, 2026-10-08), always
+    at a DMA2 Stream4 (ADC) entry on a PDM or DMA1 Ch1 on a CANBoard. Re-pending the IRQ through STIR does not wake
+    it; the watchdog reset does. Open.
 19. **Timing an edge with CYCCNT.** `CortexMDwt` counted executed instructions, which stop while Renode skips
     an idle CPU's time (14): a PWM input read ~45x its frequency. It now returns virtual time x
     `PerformanceInMips` after `cpu SyncTime`, and frequency is exact. Edges into an idle CPU still land on a

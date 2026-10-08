@@ -130,15 +130,7 @@ export async function createSim(opts = {}) {
         const t0 = await renode.readVtime();
         await new Promise((r) => setTimeout(r, 500));
         const c2 = await renode.inspect(module);
-        if (c2.instructions === c.instructions && (await renode.readVtime()) > t0) {
-          why += ', CPU not executing (wedged)';
-          fault = true;
-          if (ipsr >= 16) {   // try waking it first: keeps the module's state, and tells us if the kick works
-            await renode.nudge(module, ipsr - 16);
-            await new Promise((r) => setTimeout(r, 500));
-            if ((await renode.inspect(module)).instructions !== c.instructions) { fault = false; why += `; woken by re-pending IRQ ${ipsr - 16}`; }
-          }
-        }
+        if (c2.instructions === c.instructions && (await renode.readVtime()) > t0) { fault = true; why += ', CPU not executing (wedged)'; }
       }
     } catch (e) { why += ` (CPU not readable: ${e.message})`; }
     S.renodeLog(`[sim] ${module} stopped sending: ${why}`);
