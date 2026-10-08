@@ -80,6 +80,18 @@ export function dismissToast(id) {
 export function handle(msg) {
   switch (msg.type) {
     case 'snapshot':
+      // A tab left open across a rebuild keeps running the old code against a newer server (stuck clock,
+      // missing cards): reload once onto the build the server serves now.
+      if (msg.uiBuild && typeof document !== 'undefined') {
+        const mine = [...document.scripts].map((s) => s.src).find((s) => s.includes('/assets/index-'));
+        let tried = null;
+        try { tried = sessionStorage.getItem('uiReloadFor'); } catch { /* storage blocked */ }
+        if (mine && !mine.endsWith(msg.uiBuild) && tried !== msg.uiBuild) {
+          try { sessionStorage.setItem('uiReloadFor', msg.uiBuild); } catch { /* storage blocked */ }
+          location.reload();
+          return;
+        }
+      }
       if (msg.scene) scene.set(msg.scene);
       if (Array.isArray(msg.components)) components.set(msg.components);
       if (Array.isArray(msg.runs)) runs.set(msg.runs);

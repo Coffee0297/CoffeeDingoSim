@@ -29,6 +29,12 @@ function readBody(req, limit = 20 * 1024 * 1024) {
   });
 }
 
+/** The built UI's entry bundle name (hashed by Vite), so a tab still running an older build can tell. */
+function uiBuild() {
+  try { return /\/assets\/(index-[^"]+\.js)/.exec(fs.readFileSync(path.join(DIST, 'index.html'), 'utf8'))?.[1] ?? null; }
+  catch { return null; }
+}
+
 function serveStatic(req, res) {
   if (!fs.existsSync(path.join(DIST, 'index.html'))) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -90,7 +96,7 @@ export async function startServer(sim, opts = {}) {
 
   wss.on('connection', (ws) => {
     const send = (m) => { if (ws.readyState === 1) ws.send(JSON.stringify(m)); };
-    send(sim.snapshot());
+    send({ ...sim.snapshot(), uiBuild: uiBuild() });
     ws.on('message', async (raw) => {
       let msg;
       try { msg = JSON.parse(raw.toString()); } catch { return send({ type: 'toast', level: 'error', text: 'bad JSON' }); }

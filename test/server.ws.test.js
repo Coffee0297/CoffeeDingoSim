@@ -178,3 +178,11 @@ test('ws: a scene sent by one client reaches every other open client', async () 
   assert.equal(m.scene.nodes.find((n) => n.id === 'w1').data.park, 'ford');
   other.close();
 });
+
+test('ws: the snapshot names the UI build it serves (stale tabs reload onto it)', async () => {
+  const c = new WebSocket(`ws://127.0.0.1:${srv.port}/ws`);
+  const snap = await new Promise((r) => c.on('message', (d) => { const m = JSON.parse(d.toString()); if (m.type === 'snapshot') r(m); }));
+  assert.ok('uiBuild' in snap);
+  if (snap.uiBuild) assert.match(snap.uiBuild, /^index-.+\.js$/);   // null when the UI is not built
+  c.close();
+});
