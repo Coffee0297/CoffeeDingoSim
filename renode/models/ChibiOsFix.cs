@@ -45,11 +45,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void Reset() { }
 
-        public long Size => 0x10;
+        public long Size => 0x30;
 
         public ulong PatchedLiteralAddress { get; private set; }
         public ulong Redirects { get; private set; }   // ISR exits that were allowed to preempt
         public ulong StaleActiveCleared { get; private set; }   // stale NVIC active bits completed
+        public ulong WfiEntries { get; private set; }
+        public ulong WfiEntriesInHandler { get; private set; }
+        public uint LastWfiInHandlerPc { get; private set; }
+        public ulong WedgesHealed { get; private set; }   // handler-mode stalls woken (see CheckWedge)
+        public ulong WedgesInWfi { get; private set; }    // ... of which the core was in tlib's WFI state
 
         public uint ReadDoubleWord(long offset)
         {
@@ -58,6 +63,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return (uint)StaleActiveCleared;   // diagnostics only: the patched epilogue reads offset 4 alone
             }
+            // WFI-state diagnostics: entries, entries while in handler mode, PC of the last such entry
+            if(offset == 0x10) { return (uint)WfiEntries; }
+            if(offset == 0x14) { return (uint)WfiEntriesInHandler; }
+            if(offset == 0x18) { return LastWfiInHandlerPc; }
+            if(offset == 0x1C) { return (uint)WedgesHealed; }
+            if(offset == 0x20) { return (uint)WedgesInWfi; }
             if(offset != 4)
             {
                 return bus.ReadDoubleWord(0xE000ED00 + (ulong)offset);
@@ -132,6 +143,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return;
             }
+            if(!wfiHooked)
+            {
+                cpu.AddHookAtWfiStateChange(OnWfiStateChange);
+                wfiHooked = true;
+            }
             machine.ClockSource.TryRemoveClockEntry(ClearStaleActive);
             machine.ClockSource.AddClockEntry(new ClockEntry(period: 1, frequency: 1000, handler: ClearStaleActive,
                 owner: this, localName: "chibios-stale-active", enabled: true, workMode: WorkMode.Periodic));
@@ -145,6 +161,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             var bus = machine.SystemBus;
             var thread = (cpu.XProgramStatusRegister & 0x1FF) == 0;
+            CheckWedge(thread);
             for(var w = 0; w < 8; w++)
             {
                 var now = thread ? bus.ReadDoubleWord(0xE000E300 + 4 * (ulong)w) : 0u;
@@ -159,6 +176,61 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         StaleActiveCleared++;
                     }
                 }
+            }
+        }
+
+        // Third bug: Renode runs ChibiOS's idle loop (`b .`) as WFI, and now and then an interrupt is taken with
+        // that WFI state still latched: the core sits at the handler's first instruction executing nothing,
+        // only a higher-priority IRQ could wake it (README sharp edge 18). In a handler, two checks (2 ms) with
+        // no instruction executed cannot be genuine: clear tlib's WFI state so the handler runs.
+        private void CheckWedge(bool thread)
+        {
+            var ins = cpu.ExecutedInstructions;
+            stuckChecks = (!thread && ins == lastInstructions) ? stuckChecks + 1 : 0;
+            lastInstructions = ins;
+            if(stuckChecks < 2)
+            {
+                return;
+            }
+            stuckChecks = 0;
+            WedgesHealed++;
+            if(inWfi)
+            {
+                WedgesInWfi++;
+            }
+            cleanWfi = cleanWfi ?? FindCleanWfi();
+            cleanWfi?.Invoke();
+            this.Log(LogLevel.Info, "ChibiOsFix: core stalled in a handler (IPSR {0}, PC 0x{1:X}, WFI {2}); WFI state cleared",
+                cpu.XProgramStatusRegister & 0x1FF, (uint)cpu.PC, inWfi);
+        }
+
+        // TranslationCPU.TlibCleanWfiProcState is a private tlib import; no public API clears a latched WFI
+        private Action FindCleanWfi()
+        {
+            for(var t = cpu.GetType(); t != null; t = t.BaseType)
+            {
+                var f = t.GetField("TlibCleanWfiProcState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+                if(f != null)
+                {
+                    return f.GetValue(cpu) as Action;
+                }
+            }
+            this.Log(LogLevel.Warning, "ChibiOsFix: TlibCleanWfiProcState not found; stalled cores are left to the server watchdog");
+            return null;
+        }
+
+        private void OnWfiStateChange(bool entering)
+        {
+            inWfi = entering;
+            if(!entering)
+            {
+                return;
+            }
+            WfiEntries++;
+            if((cpu.XProgramStatusRegister & 0x1FF) != 0)
+            {
+                WfiEntriesInHandler++;
+                LastWfiInHandlerPc = (uint)cpu.PC;
             }
         }
 
@@ -183,6 +255,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ulong windowAddress;
         private CortexM cpu;
         private NVIC nvic;
+        private bool wfiHooked;
+        private bool inWfi;
+        private int stuckChecks;
+        private ulong lastInstructions;
+        private Action cleanWfi;
         private readonly uint[] seen1 = new uint[8];
         private readonly uint[] seen2 = new uint[8];
     }

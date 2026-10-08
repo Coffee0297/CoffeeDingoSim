@@ -15,6 +15,11 @@
   const freq = $derived(data.freq ?? 100);
   const on = $derived(data.on ?? true);
   const wired = $derived(wiredInput($scene?.edges, id));
+  // the simulator takes edges into an idle CPU on its sync quantum (250 us in a scene with a PWM source,
+  // globals.quantumUs to change), so each edge is good to about one quantum: +-quantum x freq of duty
+  // (README sharp edge 19). Hardware is exact.
+  const quantumUs = $derived(Number($scene?.globals?.quantumUs) > 0 ? Number($scene.globals.quantumUs) : 250);
+  const resPct = $derived((quantumUs * freq) / 1e4);
 
   function set(patch) {
     updateNodeData(id, patch);
@@ -50,6 +55,7 @@
       <option value="12v">Drives 12 V (high side)</option><option value="gnd">Pulls to ground (open collector)</option>
     </select>
     <button class="power" class:on onclick={() => set({ on: !on })} aria-pressed={on}>{on ? 'Running' : 'Stopped'}</button>
+    {#if on && resPct >= 1}<div class="warn">Simulator resolution ±{resPct >= 10 ? Math.round(resPct) : resPct.toFixed(1)} % duty at {freq} Hz ({quantumUs} µs time step); exact on hardware.</div>{/if}
   </div>
   <Handle type="source" position={Position.Right} id="out" class="handle-out" />
 </div>
@@ -69,4 +75,5 @@
     background: var(--raised); cursor: pointer; font: inherit;
   }
   .power.on { background: var(--st-on); border-color: var(--st-on); color: var(--accent-ink); }
+  .warn { font-size: 11px; color: var(--st-warn, #c58a00); line-height: 1.3; }
 </style>

@@ -144,7 +144,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const sim = await createSim();
   const srv = await startServer(sim);
   console.log(`CoffeeDingoSim on http://127.0.0.1:${srv.port}  (ws /ws, mcp /mcp, scene ${sim.state.sceneName})`);
-  const quit = async () => { await sim.close(); await srv.close(); process.exit(0); };
-  process.on('SIGINT', quit);
-  process.on('SIGTERM', quit);
+  const quit = (sig) => async () => { console.log(`[info] ${sig}: shutting down`); await sim.close(); await srv.close(); process.exit(0); };
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP']) process.on(sig, quit(sig));
+  process.on('exit', (code) => console.log(`[info] server exiting, code ${code}`));   // never die silently
 }

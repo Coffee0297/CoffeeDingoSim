@@ -8,7 +8,7 @@ import { createBank } from './bank.js';
 import { createBus } from './bus.js';
 import { createBridge } from './bridge.js';
 import { createStimulus } from './stimulus.js';
-import { createRenode } from './renode.js';
+import { createRenode, sceneQuantumUs } from './renode.js';
 import { resolveFirmware, listReleases } from './firmware.js';
 import { createRecorder, replay as replayRun, readRun, markGolden, diffRuns } from './record.js';
 import { importProject } from './project.js';
@@ -168,6 +168,7 @@ export async function createSim(opts = {}) {
   function applySceneSideEffects() {
     bus.setModules(state.scene?.modules || []);
     stim.pushBankScenes();
+    renode.setQuantum?.(sceneQuantumUs(state.scene)).catch((e) => S.renodeLog(`[sim] quantum change failed: ${e.message}`));
   }
 
   // ------------------------------------------------------------ operations ---------------
@@ -206,6 +207,9 @@ export async function createSim(opts = {}) {
       scene.name ||= state.sceneName;
       S.setScene(scene);
       applySceneSideEffects();
+      // every open UI must see it: a client that missed a scene kept its stale copy and, on its next canvas
+      // edit, sent that whole scene back over the newer one (lost settings, cards vanishing mid-test)
+      broadcast({ type: 'scene', scene: state.scene });
       return scene;
     },
     loadScene(name) {

@@ -128,16 +128,25 @@ node renode/test/mon.mjs start
     handler (IPSR 76, IRQ 60 active, nothing pending), `IsHalted` False, `ExecutedInstructions` frozen while
     the module's timers kept counting. ChibiOS's idle loop never WFIs, so a frozen counter outside deep sleep
     means the core stopped; the silent-module check reads the counter twice and resets it like 17.
-    Not the cause of 17 after all: still seen after that fix (PDM-01/04 during a full redeploy, 2026-10-08), always
-    at a DMA2 Stream4 (ADC) entry on a PDM or DMA1 Ch1 on a CANBoard. Re-pending the IRQ through STIR does not wake
-    it; the watchdog reset does. Open.
+    Cause (2026-10-08): that WFI state (19) is sometimes still latched when an interrupt is taken, so the core
+    sits at the handler's first instruction and only a higher-priority IRQ could wake it (ChibiOsFix counted WFI
+    entries in handler mode at `Vector130` and `st_lld_serve_interrupt`). ChibiOsFix now treats two 1 ms checks in
+    a handler with no instruction executed as this stall and clears the state (`TlibCleanWfiProcState`); a soak
+    of 28 deploys + 4 vehicle tests healed one (PDM-02, `Vector130`) with no silence and no reset. Counters at
+    window +0x10 WFI entries, +0x14 in a handler, +0x18 its PC, +0x1C stalls healed, +0x20 of them in WFI. The
+    server's wedge/fault reset stays as the last resort.
 19. **Timing an edge with CYCCNT.** `CortexMDwt` counted executed instructions, which stop while Renode skips
     an idle CPU's time (14): a PWM input read ~45x its frequency. It now returns virtual time x
-    `PerformanceInMips` after `cpu SyncTime`, and frequency is exact. Edges into an idle CPU still land on a
-    ~0.5 ms grid, so one period's high time can be 0.5 ms off: at 100 Hz the duty reads in 5 % steps, while
-    from ~1 kHz each firmware update averages many periods and reads true. Real hardware takes the EXTI
-    interrupt within microseconds. The bank's own edge times (virtual time, ns) read back at bank offset
-    `0x80 + 8*(DI-1)` (+0 high, +4 period).
+    `PerformanceInMips` after `cpu SyncTime`, and frequency is exact. Renode runs ChibiOS's idle loop
+    (`b .`) as WFI (ChibiOsFix counts ~10^5 WFI entries a minute) and an idle CPU takes an interrupt only at
+    its next sync point, so edges land on a grid of about the global quantum. A scene with a PWM source card
+    therefore runs on a 250 us quantum (server/renode.js `sceneQuantumUs`, switched live when the card is
+    added; ~0.3x real time instead of ~0.55x). Each edge is then good to about one quantum: +-quantum x freq of
+    duty (+-2.5 % at 100 Hz, +-25 % at 1 kHz; the card shows it), a pulse shorter than 250 us reads as about
+    250 us, and ~5 kHz cannot be generated cleanly.
+    `globals.quantumUs` sets a finer (slower) step. Real hardware takes the EXTI interrupt within
+    microseconds. The bank's own edge times (virtual time, ns) read back at bank offset `0x80 + 8*(DI-1)`
+    (+0 high, +4 period).
 
 ## Not verified / open
 

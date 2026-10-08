@@ -165,3 +165,16 @@ test('REST snapshot + MCP tools over HTTP', async () => {
   const st = JSON.parse(cr.result.content[0].text);
   assert.equal(st.modules.module, 'PDM-01');
 });
+
+test('ws: a scene sent by one client reaches every other open client', async () => {
+  const other = new WebSocket(`ws://127.0.0.1:${srv.port}/ws`);
+  const got = [];
+  other.on('message', (d) => got.push(JSON.parse(d.toString())));
+  await new Promise((r) => other.once('open', r));
+  const sc = JSON.parse(JSON.stringify(SCENE));
+  sc.nodes.push({ id: 'w1', type: 'wiper', pos: {}, data: { ratedW: 60, slowRps: 0.7, fastRps: 1.2, park: 'ford' } });
+  ws.send(JSON.stringify({ type: 'scene', id: 77, scene: sc }));
+  const m = await until(() => got.find((x) => x.type === 'scene' && x.scene?.nodes?.some((n) => n.id === 'w1')), 3000);
+  assert.equal(m.scene.nodes.find((n) => n.id === 'w1').data.park, 'ford');
+  other.close();
+});

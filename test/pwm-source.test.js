@@ -26,3 +26,11 @@ test('pwm source: action clamps duty/freq and the node type is valid', () => {
   assert.deepEqual(s2.nodes[0].data, { duty: 100, freq: 0, on: false });
   assert.deepEqual(validateScene({ version: 1, name: 't', ...s2 }), []);
 });
+
+test('pwm source: a scene with a PWM source runs on the 250 us quantum, others on 1 ms', async () => {
+  const { sceneQuantumUs } = await import('../server/renode.js');
+  assert.equal(sceneQuantumUs({ nodes: [{ type: 'switch' }] }), 1000);
+  assert.equal(sceneQuantumUs({ nodes: [{ type: 'pwmsrc' }] }), 250);
+  assert.equal(sceneQuantumUs({ globals: { quantumUs: 500 }, nodes: [{ type: 'pwmsrc' }] }), 500);   // override wins
+  assert.equal(sceneQuantumUs({ globals: { quantumUs: 1 }, nodes: [] }), 50);                           // clamped
+});

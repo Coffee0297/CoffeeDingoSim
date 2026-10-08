@@ -149,6 +149,16 @@ export function calWordLines(kind) {
   return (CAL_WORDS[kind] || CAL_WORDS.pdm).map(([a, v]) => `sysbus WriteWord 0x${a.toString(16).toUpperCase()} ${v}`).join('\n');
 }
 
+/**
+ * Pure: the emulation's global quantum in us. `globals.quantumUs` wins (50..5000); otherwise 250 us when a
+ * PWM source card is in the scene (edges into an idle CPU land on a quantum grid) and 1 ms elsewhere (speed).
+ */
+export function sceneQuantumUs(scene) {
+  const q = Number(scene?.globals?.quantumUs);
+  if (Number.isFinite(q) && q > 0) return Math.max(50, Math.min(5000, Math.round(q)));
+  return (scene?.nodes || []).some((n) => n.type === 'pwmsrc') ? 250 : 1000;
+}
+
 /** Pure: the board .repl text with the load bank's NDJSON `port:` set to `bankPort`. */
 export function replWithBankPort(text, bankPort) {
   return text.replace(/(loadBank:\s*Miscellaneous\.ProfetLoadBank[^\n]*\n(?:[ \t]+[^\n]*\n)*?[ \t]+port:\s*)\d+/, `$1${bankPort}`);
@@ -215,8 +225,10 @@ export function generateResc(scene, firmwarePaths, opt = {}) {
     }));
   }
   if (!machines.length) throw new Error(`scene ${name}: no module can be simulated (${skipped.map((s) => `${s.id}: ${s.reason}`).join('; ') || 'no modules'})`);
+  const quantumUs = sceneQuantumUs(scene);
   const text = tpl(carT, {
     scene: name, hub: o.hub, bridgePort: o.bridgePort, bankPort: o.bankPort, monitorPort: o.monitorPort,
+    quantumUs, quantum: (quantumUs / 1e6).toString(),
     models: fwd(path.join(ROOT, 'renode', 'models')), modelsAnchor: fwd(path.join(ROOT, 'renode', 'platforms', 'canboard_v2.repl')),
     machines: machines.join('\n'),
   });
@@ -377,6 +389,7 @@ export function createRenode(opts = {}) {
   let scene = null;
   let generated = null;
   let freeRunning = false; // emulation started with `start` (not a RunFor step)
+  let quantumUs = 0;        // the running emulation's global quantum (sceneQuantumUs)
 
   const set = (s, extra = {}) => { status = s; onStatus({ status: s, vtime, ...extra }); };
   const logLines = (chunk) => { for (const l of cleanMonitor(chunk.toString('utf8')).split('\n')) if (l.trim()) onLog(l); };
@@ -415,11 +428,14 @@ export function createRenode(opts = {}) {
       flags ||= await probeFlags(exe);
       monitorPort = fixedMonitorPort || await freePort();
       generated = generateResc(sc, firmwarePaths, { monitorPort, bridgePort, bankPort, isolate: o.isolate, only: o.only, nvDir: o.nvDir });
+      quantumUs = sceneQuantumUs(sc);
       for (const s of generated.skipped) onLog(`[sim] ${s.id} not simulated: ${s.reason}`);
       set('starting', { exe, resc: generated.path });
       const args = ['-P', String(monitorPort), ...flags];
       onLog(`[sim] ${exe} ${args.join(' ')}`);
-      const me = (opts.spawnImpl || spawn)(exe, args, { cwd: path.dirname(exe), windowsHide: true });
+      // detached = own process group on Windows: a console control event at Renode's quit must not reach (and
+      // silently end) the server; the server died this way twice, exit 127, nothing logged
+      const me = (opts.spawnImpl || spawn)(exe, args, { cwd: path.dirname(exe), windowsHide: true, detached: process.platform === 'win32' });
       proc = me;
       me.stdout?.on('data', logLines);
       me.stderr?.on('data', logLines);
@@ -499,6 +515,14 @@ export function createRenode(opts = {}) {
           // read-only: addresses are numbers, formatted here, never raw monitor text
           read: Object.fromEntries(await Promise.all([].concat(read).filter(Number.isFinite).map(async (a) => ['0x' + a.toString(16), await ask(`sysbus ReadDoubleWord 0x${a.toString(16)}`)]))) };
       } finally { await need().cmd('mach clear'); }
+    },
+    /** Re-time a running emulation when the scene's quantum changes (a PWM source card added or removed). */
+    async setQuantum(us) {
+      if (!monitor || !quantumUs || us === quantumUs) return false;
+      await checked(`emulation SetGlobalQuantum "${us / 1e6}"`);
+      onLog(`[sim] quantum ${quantumUs} -> ${us} us`);
+      quantumUs = us;
+      return true;
     },
     /** Per-receiver delivery counters of the paced vehicle hub (renode/models/PacedCANHub.cs). */
     async hubStats(watch) { if (Number.isInteger(watch)) await need().cmd(`${DEFAULTS.hub} WatchId ${watch}`); return cleanMonitor(await need().cmd(`${DEFAULTS.hub} Stats`)); },

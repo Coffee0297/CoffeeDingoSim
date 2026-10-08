@@ -17,7 +17,9 @@ machine LoadPlatformDescriptionFromString "slcanBridge: CAN.SlcanTcpBridge @ sys
 connector Connect sysbus.slcanBridge ${hub}
 mach clear
 
-# 1 ms quantum: inter-module latency stays under one CAN cycle (firmware messages run at 10-100 ms) while
-# the 7-machine barrier costs 10x less than at 100 us (0.31x -> ~0.8x real time)
-emulation SetGlobalQuantum "0.001"
+# Quantum ${quantumUs} us (server/renode.js sceneQuantumUs). 1 ms keeps inter-module latency under one CAN cycle
+# while the 7-machine barrier stays cheap (~0.55x real time). An idle CPU (ChibiOS idle = WFI to Renode) only
+# takes an interrupt at its next sync point, so pin edges land on a quantum-sized grid: scenes with a PWM
+# source get 250 us (~0.3x real time, PWM duty within ~1 %). renode/README.md sharp edge 19.
+emulation SetGlobalQuantum "${quantum}"
 logLevel 2
