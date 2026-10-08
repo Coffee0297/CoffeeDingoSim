@@ -34,6 +34,7 @@ export const RULES = [
   { from: ['switch', 'contact'], to: ['module', 'di'], oneSource: true },
   { from: ['switch', 'contact'], to: ['module', 'ai'], oneSource: true },   // an analog input in switch mode
   { from: ['wiper', 'park'], to: ['module', 'di'], oneSource: true },
+  { from: ['pwmsrc', 'out'], to: ['module', 'di'], oneSource: true },
   { from: ['rotary', 'wiper'], to: ['module', 'ai'], oneSource: true },
   { from: ['module', 'do'], to: ['wiper', 'run'], oneSource: true },
   { from: ['module', 'do'], to: ['wiper', 'speed'], oneSource: true },
@@ -169,6 +170,7 @@ export function nodeDefaults(type) {
     case 'engine': return { state: 'off', throttle: 0, speedKph: 0 };
     case 'battery': return { vocV: 12.6, riOhm: 0.015, altV: 14.2 };
     case 'wiper': return { ratedW: 60, slowRps: 0.7, fastRps: 1.2 };
+    case 'pwmsrc': return { level: '12v', duty: 50, freq: 100, on: true };
     case 'load': return { component: 'generic_resistive', preset: null, ratedA: 1, ratedW: 13.8, fault: null, guess: false };
     default: return {};
   }
@@ -204,6 +206,7 @@ export const STIMULUS_ITEMS = [
   { type: 'engine', name: 'Engine', hint: 'off / ign / crank / run, RPM, coolant', icon: 'engine' },
   { type: 'battery', name: 'Battery', hint: 'Voc, Ri, alternator — feeds every module', icon: 'battery' },
   { type: 'wiper', name: 'Wiper motor', hint: 'coupled load with run / speed / park', icon: 'wiper' },
+  { type: 'pwmsrc', name: 'PWM source', hint: 'duty % + frequency → digital input (PWM mode)', icon: 'pwm' },
 ];
 
 /**

@@ -31,6 +31,15 @@ export function switchPinValue(level, closed) {
   return level === 'gnd' ? (closed ? 0 : 1) : closed ? 1 : 0;
 }
 
+/**
+ * PWM source → % of the period the pin is HIGH. A 12 V source drives the pin high while active; a ground
+ * source (open collector, the input's pull-up) pulls it low while active. Off = the inactive level.
+ */
+export function pwmPinDuty(level, duty, on) {
+  const d = on ? Math.max(0, Math.min(100, Number(duty) || 0)) : 0;
+  return level === 'gnd' ? 100 - d : d;
+}
+
 /** Rotary position → mV with ± uniform noise. */
 export function rotaryMv(data, index, rnd = Math.random) {
   const pos = data?.positions?.[index];
@@ -163,6 +172,7 @@ export async function createStimulus(ctx) {
     for (const n of scene().nodes || []) {
       if (n.type === 'switch') apply({ kind: 'switch', node: n.id, state: !!n.data?.state }, { silent: true });
       if (n.type === 'rotary') apply({ kind: 'rotary', node: n.id, index: n.data?.index ?? 0 }, { silent: true });
+      if (n.type === 'pwmsrc') apply({ kind: 'pwm', node: n.id }, { silent: true });
     }
   }
 
@@ -187,6 +197,19 @@ export async function createStimulus(ctx) {
           const mV = a.state ? 5000 : 0;
           ctx.bank.adc(l.module, l.n, mV);
           sent.push({ adc: l.module, ch: l.n, mV });
+        }
+        break;
+      }
+      case 'pwm': {
+        const d = { duty: 50, freq: 100, on: true, level: '12v', ...n.data };
+        for (const k of ['duty', 'freq', 'on', 'level']) if (a[k] !== undefined) d[k] = a[k];
+        d.duty = Math.max(0, Math.min(100, Number(d.duty) || 0));
+        d.freq = Math.max(0, Math.min(10000, Number(d.freq) || 0));
+        n.data = d;
+        for (const l of moduleLinks(scene(), n.id, 'di:')) {
+          const pin = `DI${l.n}`, duty = pwmPinDuty(d.level, d.duty, d.on);
+          ctx.bank.pwm(l.module, pin, duty, d.freq);
+          sent.push({ pwm: l.module, pin, duty, freq: d.freq });
         }
         break;
       }

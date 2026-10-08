@@ -84,7 +84,8 @@ at least one test. No TypeScript; JSDoc types welcome.
     { "id": "n5", "type": "cangen",  "pos": {}, "data": { "dbc": "renode/SimEngine.dbc", "frames": [{"id": 512, "cycleMs": 100, "signals": {"RPM": 850}}] } },
     { "id": "n6", "type": "engine",  "pos": {}, "data": { "state": "off", "throttle": 0, "speedKph": 0 } },      // state: off|ign|crank|run
     { "id": "n7", "type": "battery", "pos": {}, "data": { "vocV": 12.6, "riOhm": 0.015, "altV": 14.2 } },
-    { "id": "n8", "type": "wiper",   "pos": {}, "data": { "ratedW": 60, "slowRps": 0.7, "fastRps": 1.2 } }
+    { "id": "n8", "type": "wiper",   "pos": {}, "data": { "ratedW": 60, "slowRps": 0.7, "fastRps": 1.2 } },
+    { "id": "n9", "type": "pwmsrc",  "pos": {}, "data": { "level": "12v", "duty": 50, "freq": 100, "on": true } }   // level: 12v|gnd (open collector)
   ],
   "edges": [ { "id": "e1", "from": { "node": "n1", "handle": "supply" }, "to": { "node": "PDM-01", "handle": "out:1" } } ],
   "globals": { "noisePct": 1, "forceOutputsOn": false }  // forceOutputsOn: bring-up binds every enabled output to Always On
@@ -93,7 +94,8 @@ at least one test. No TypeScript; JSDoc types welcome.
 
 Handles. Module nodes (targets unless noted): `out:<n>`, `di:<n>`, `ai:<n>`, `do:<n>` (source), `vbatt` (source),
 `temp` (source). Load: `supply` (source). Switch: `contact` (source). Rotary: `wiper` (source). Wiper node:
-`supply` (source), `run` + `speed` (targets, from `do:<n>`), `park` (source → `di:<n>`). Engine: `alternator`
+`supply` (source), `run` + `speed` (targets, from `do:<n>`), `park` (source → `di:<n>`). PWM source: `out` (source →
+`di:<n>` of an input in PWM mode; action `{kind:'pwm', node, duty?, freq?, on?, level?}`). Engine: `alternator`
 (source → battery `alt`), `fan` (target, from a load's `supply`… i.e. a second edge from the fan load). Battery:
 `alt` (target), supply is implicit to every module. Fault object: `{ "kind": "open|short|stall|intermittent|hires|wrongpart", "atMs": 0 }`.
 
@@ -150,6 +152,7 @@ Direction bank → app unless marked (in). `machine` is the Renode machine name 
 { "type": "fault", "machine": "PDM-04", "out": 1, "load": "n9", "kind": "stall", "atMs": 0 }           // (in) kind: open|short|stall|intermittent|hires|wrongpart|clear
 { "type": "vbatt", "machine": "*", "v": 12.2 }                                                        // (in) "*" = every machine
 { "type": "gpio", "machine": "PDM-01", "pin": "DI1", "value": 1 }                                     // (in) DI<n>; CANBoard DI1..8
+{ "type": "pwm", "machine": "CB-2", "pin": "DI1", "duty": 25, "freq": 100 }                           // (in) duty = % HIGH; 0/100 or freq 0 = steady
 { "type": "adc", "machine": "CB-1", "ch": 1, "mV": 1500 }                                             // (in) CANBoard analog input n
 { "type": "temp", "machine": "PDM-03", "c": 85.0 }                                                    // (in) MCP9808 ambient
 { "type": "list" }                                                                                    // (in)

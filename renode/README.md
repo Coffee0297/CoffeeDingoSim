@@ -118,9 +118,24 @@ node renode/test/mon.mjs start
     keeping the last value when busy); it froze the emulation under `emulation RunFor`.
 17. **Rare UsageFault on ChibiOS's ISR exit.** About once per half hour of 7-module running, one module faulted
     with CFSR INVSTATE (0x00020000), stacked PC just after the `svc 0` in `__port_exit_from_isr`, stacks
-    intact: the fake-return-frame path under Renode's exception emulation (see 2 and 12). Not found yet.
+    intact. Cause (2026-10-08): ChibiOsFix's stale-active check (2) sometimes saw IPSR = 0 while a handler was
+    genuinely running and completed that IRQ, desyncing Renode's NVIC active stack (logged as "Trying to
+    complete not active IRQ", hundreds per hour). It now needs 3 consecutive Thread-mode sightings; a 3x
+    vehicle-test soak then gave 0 NVIC errors and 0 faults, with single-digit genuine stale repairs.
     The server reads the CPU of any module that falls silent (`[sim] X stopped sending: ...` in the log)
     and resets one stuck in a fault handler, as a watchdog would on hardware (the firmware has none).
+18. **Wedged core at an ISR entry.** Seen once (PDM-03): PC at the first instruction of the DMA2 Stream4
+    handler (IPSR 76, IRQ 60 active, nothing pending), `IsHalted` False, `ExecutedInstructions` frozen while
+    the module's timers kept counting. ChibiOS's idle loop never WFIs, so a frozen counter outside deep sleep
+    means the core stopped; the silent-module check reads the counter twice and resets it like 17.
+    Same cause as 17: not seen since that fix. The fault/wedge resets stay as a watchdog.
+19. **Timing an edge with CYCCNT.** `CortexMDwt` counted executed instructions, which stop while Renode skips
+    an idle CPU's time (14): a PWM input read ~45x its frequency. It now returns virtual time x
+    `PerformanceInMips` after `cpu SyncTime`, and frequency is exact. Edges into an idle CPU still land on a
+    ~0.5 ms grid, so one period's high time can be 0.5 ms off: at 100 Hz the duty reads in 5 % steps, while
+    from ~1 kHz each firmware update averages many periods and reads true. Real hardware takes the EXTI
+    interrupt within microseconds. The bank's own edge times (virtual time, ns) read back at bank offset
+    `0x80 + 8*(DI-1)` (+0 high, +4 period).
 
 ## Not verified / open
 

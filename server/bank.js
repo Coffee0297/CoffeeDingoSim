@@ -99,6 +99,8 @@ export function createBank(opts = {}) {
     fault(machine, out, load, kind, atMs = 0) { return write({ type: 'fault', machine, out, load, kind, atMs }); },
     vbatt(machine, v) { const m = { type: 'vbatt', machine, v: Number(v.toFixed(3)) }; if (machine === '*') lastVbatt = m; return write(m); },
     gpio(machine, pin, value) { return write({ type: 'gpio', machine, pin, value: value ? 1 : 0 }); },
+    /** PWM on a DI: `duty` = % of the period the pin is high; 0/100 or freq 0 = a steady level. */
+    pwm(machine, pin, duty, freq) { return write({ type: 'pwm', machine, pin, duty: Number(duty.toFixed(2)), freq }); },
     adc(machine, ch, mV) { return write({ type: 'adc', machine, ch, mV: Math.round(mV) }); },
     temp(machine, c) { return write({ type: 'temp', machine, c }); },
     list() { return write({ type: 'list' }); },

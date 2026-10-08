@@ -1,7 +1,9 @@
 //
 // Minimal Cortex-M DWT (0xE0001000): CTRL + CYCCNT. ChibiOS enables CYCCNT in port_init() and uses it
 // for polled delays (port_rt_get_counter_value); without it every polled delay spins forever.
-// CYCCNT = CPU executed instructions (with PerformanceInMips == core MHz, 1 instruction = 1 cycle).
+// CYCCNT = virtual time x PerformanceInMips (== core MHz), synced to the executing instruction first, so it
+// counts through the idle time Renode skips (sharp edge 14) and is exact inside an ISR. ExecutedInstructions
+// made a PWM input read ~45x the real frequency; ElapsedCycles only moves at sync points (+500 us on a fall).
 //
 // repl:  dwt: Miscellaneous.CortexMDwt @ sysbus 0xE0001000
 //            cpu: cpu
@@ -17,6 +19,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public CortexMDwt(IMachine machine, ICPU cpu)
         {
+            this.machine = machine;
             this.cpu = cpu as TranslationCPU;
             Reset();
         }
@@ -49,8 +52,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private ulong Cycles() => cpu != null ? cpu.ExecutedInstructions : 0;
+        // Read from the CPU thread (firmware access), where SyncTime is allowed.
+        private ulong Cycles()
+        {
+            if(cpu == null)
+            {
+                return 0;
+            }
+            cpu.SyncTime();
+            return (ulong)(machine.ElapsedVirtualTime.TimeElapsed.TotalNanoseconds * cpu.PerformanceInMips / 1000);
+        }
 
+        private readonly IMachine machine;
         private readonly TranslationCPU cpu;
         private uint ctrl;
         private ulong offset;

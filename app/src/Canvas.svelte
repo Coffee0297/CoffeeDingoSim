@@ -22,10 +22,11 @@
   import EngineNode from './nodes/EngineNode.svelte';
   import BatteryNode from './nodes/BatteryNode.svelte';
   import WiperNode from './nodes/WiperNode.svelte';
+  import PwmSourceNode from './nodes/PwmSourceNode.svelte';
 
   const nodeTypes = {
     module: ModuleNode, load: LoadNode, switch: SwitchNode, rotary: RotaryNode, keypad: KeypadNode,
-    cangen: CanGenNode, engine: EngineNode, battery: BatteryNode, wiper: WiperNode,
+    cangen: CanGenNode, engine: EngineNode, battery: BatteryNode, wiper: WiperNode, pwmsrc: PwmSourceNode,
   };
 
   const flow = useSvelteFlow();
@@ -121,7 +122,7 @@
     if (!cfg || cfg.type !== node.type) return;
     const patch = node.type === 'rotary' ? { ...cfg.data, index: 0 } : node.type === 'load' ? { ...cfg.data, name: null } : cfg.data;
     nodes = nodes.map((x) => (x.id === node.id ? { ...x, data: { ...x.data, ...patch } } : x));
-    flashHint(`${node.type === 'load' ? 'Load' : node.type === 'rotary' ? 'Knob' : 'Switch'} named "${cfg.data.name ?? cfg.data.label}" from ${c.target} ${c.targetHandle}`);
+    flashHint(`${node.type === 'load' ? 'Load' : node.type === 'rotary' ? 'Knob' : node.type === 'pwmsrc' ? 'PWM source' : 'Switch'} named "${cfg.data.name ?? cfg.data.label}" from ${c.target} ${c.targetHandle}`);
   }
 
   function onconnectend(_event, state) {

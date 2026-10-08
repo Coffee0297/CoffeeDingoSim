@@ -2,7 +2,7 @@
 
 Vehicle simulator for **dingoPDM / dingoPDM-Max / CANBoard**: the real firmware images run in
 [Renode](https://renode.io) on a virtual CAN bus; a graphical canvas lets you drop bulbs, pumps, fans, switches,
-rotary knobs, keypads, an engine and a battery and wire them to the modules of a dingoConfig project *by name*;
+rotary knobs, PWM sources, keypads, an engine and a battery and wire them to the modules of a dingoConfig project *by name*;
 any dingoConfig (original or fork) connects to the bus as if a USB-CAN stick were plugged in.
 
 Status: **under construction**. File formats and protocols (scene, load bank, SLCAN bridge, WebSocket) are

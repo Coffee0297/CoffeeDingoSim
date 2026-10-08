@@ -13,6 +13,12 @@ sysbus.chibiosFix Install
 cpu VectorTableOffset 0x08004000
 # the DMA model logs every unhandled control bit the ChibiOS driver writes: keep the log readable
 logLevel 3 sysbus.dma1
+# DO1..DO4 PWM timebases: the stock timer tags the preload (OCxPE) and MOE bits ChibiOS's PWM driver sets as
+# unhandled (no effect on the waveform the bank reads): only their errors are logged
+logLevel 3 sysbus.timer3
+logLevel 3 sysbus.timer15
+logLevel 3 sysbus.timer16
+logLevel 3 sysbus.timer17
 # factory calibration words (TS_CAL1 30 C, VREFINT_CAL, TS_CAL2 110 C; ROM is plain memory in Renode)
 ${calWords}
 # config sector (flash 0x0800F800, 2 KB) image: loaded now if present, else the sector reads erased and the

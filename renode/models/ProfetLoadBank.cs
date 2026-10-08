@@ -170,6 +170,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     return (uint)ticks;
                 }
+                if(offset >= 0x80 && offset < 0xC0)
+                {
+                    // PWM source diagnostics per DI (i = (offset - 0x80) / 8): +0 last high time, +4 last period, ns
+                    var i = (int)((offset - 0x80) / 8);
+                    return (offset & 4) == 0 ? pwmHighNs[i] : pwmPeriodNs[i];
+                }
                 return 0;
             }
         }
@@ -440,6 +446,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case "temp":
                     SetBoardTemperature(Json.D(m, "c", 25));
                     break;
+                case "pwm":
+                {
+                    // {pin:"DI3", duty:<% of the period the pin is HIGH>, freq:<Hz>}; duty 0/100 or freq 0 = steady level
+                    var pin = Json.S(m, "pin", "");
+                    if(pin.StartsWith("DI", StringComparison.OrdinalIgnoreCase) && int.TryParse(pin.Substring(2), out var di) && di >= 1 && di <= nDi)
+                    {
+                        pwmPending.Enqueue(new PwmSet { Di = di, Duty = Json.D(m, "duty", 0), Freq = Json.D(m, "freq", 0) });
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Warning, "pwm: unknown pin '{0}' on {1}", pin, Board);
+                    }
+                    break;
+                }
                 default:
                     this.Log(LogLevel.Warning, "unknown message type '{0}'", type);
                     break;
@@ -572,6 +592,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void Tick()
         {
+            // PWM settings change clock entries, so they run here, outside `sync` (lock order, README 16)
+            while(pwmPending.TryDequeue(out var p))
+            {
+                ApplyPwm(p);
+            }
             lock(sync)
             {
                 ticks++;
@@ -833,6 +858,82 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 Emit("wake-pulse");
             }
         }
+
+        // ---------------------------------- PWM source on a DI ----------------------------------------
+        // One 1 MHz clock entry per DI: each firing flips the pin and re-arms itself for the next phase, so
+        // edges land at their exact virtual time (the 1 kHz tick would quantise a 100 Hz duty to 10 %).
+
+        private struct PwmSet { public int Di; public double Duty; public double Freq; }
+
+        private void ApplyPwm(PwmSet p)
+        {
+            var i = p.Di - 1;
+            var periodUs = p.Freq > 0 ? 1e6 / p.Freq : 0;
+            var hi = (ulong)Math.Round(periodUs * p.Duty / 100.0);
+            var lo = (ulong)Math.Round(periodUs) - Math.Min(hi, (ulong)Math.Round(periodUs));
+            if(pwmEdge[i] == null)
+            {
+                var idx = i;
+                pwmEdge[i] = () => PwmEdge(idx);
+                machine.ClockSource.AddClockEntry(new ClockEntry(period: 1, frequency: 1000000, handler: pwmEdge[i],
+                    owner: this, localName: "pwm-di" + p.Di, enabled: false, workMode: WorkMode.Periodic));
+            }
+            if(hi == 0 || lo == 0)
+            {
+                // steady: 0 % (or no frequency) = low, 100 % = high
+                machine.ClockSource.ExchangeClockEntryWith(pwmEdge[i], e => e.With(enabled: false));
+                pwmHi[i] = pwmLo[i] = 0;
+                lock(sync)
+                {
+                    DriveDi(p.Di, hi > 0 && periodUs > 0);
+                }
+                return;
+            }
+            var running = pwmHi[i] != 0;
+            pwmHi[i] = hi;
+            pwmLo[i] = lo;
+            if(!running)
+            {
+                // start on a rising edge; the new phase lengths apply from the next edge
+                lock(sync)
+                {
+                    DriveDi(p.Di, true);
+                }
+                machine.ClockSource.ExchangeClockEntryWith(pwmEdge[i], e => e.With(period: hi, enabled: true, value: 0));
+            }
+        }
+
+        private void PwmEdge(int i)
+        {
+            var hi = pwmHi[i];
+            var lo = pwmLo[i];
+            if(hi == 0)
+            {
+                return;
+            }
+            var level = !diState[i];
+            diState[i] = level;
+            Connections[i].Set(level);
+            var now = machine.ElapsedVirtualTime.TimeElapsed.TotalNanoseconds;
+            if(level)
+            {
+                pwmPeriodNs[i] = (uint)(now - pwmRiseNs[i]);
+                pwmRiseNs[i] = now;
+            }
+            else
+            {
+                pwmHighNs[i] = (uint)(now - pwmRiseNs[i]);
+            }
+            machine.ClockSource.ExchangeClockEntryWith(pwmEdge[i], e => e.With(period: level ? hi : lo));
+        }
+
+        private readonly ConcurrentQueue<PwmSet> pwmPending = new ConcurrentQueue<PwmSet>();
+        private readonly Action[] pwmEdge = new Action[8];
+        private readonly ulong[] pwmHi = new ulong[8];
+        private readonly ulong[] pwmLo = new ulong[8];
+        private readonly ulong[] pwmRiseNs = new ulong[8];
+        private readonly uint[] pwmHighNs = new uint[8];
+        private readonly uint[] pwmPeriodNs = new uint[8];
 
         private void DriveDi(int di, bool value)
         {

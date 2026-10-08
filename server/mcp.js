@@ -71,6 +71,11 @@ export const TOOLS = {
     inputSchema: obj({ node: str('switch node id'), state: bool('closed = true') }, ['node', 'state']),
     run: (sim, a) => sim.action({ kind: 'switch', node: a.node, state: a.state }),
   },
+  sim_pwm: {
+    description: 'Set a PWM source node: duty % of the active level, frequency Hz, on/off.',
+    inputSchema: obj({ node: str('pwmsrc node id'), duty: num('duty % 0..100'), freq: num('Hz'), on: bool('output active') }, ['node']),
+    run: (sim, a) => sim.action({ kind: 'pwm', node: a.node, duty: a.duty, freq: a.freq, on: a.on }),
+  },
   sim_rotary: {
     description: 'Turn a rotary knob to a position index.',
     inputSchema: obj({ node: str('rotary node id'), index: num('position index') }, ['node', 'index']),
