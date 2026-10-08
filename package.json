@@ -1,6 +1,6 @@
 {
   "name": "coffeedingosim",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Vehicle simulator for dingoPDM / CANBoard: real firmware in Renode, graphical load and stimulus canvas, SLCAN bridge to dingoConfig.",
