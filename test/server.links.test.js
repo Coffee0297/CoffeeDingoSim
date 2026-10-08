@@ -172,3 +172,21 @@ test('bridge: mode parsing', () => {
   assert.deepEqual(parseMode('none'), { kind: 'none' });
   assert.deepEqual(parseMode(undefined), { kind: 'none' });
 });
+
+test('bridge: a filter left by a client that went away does not narrow the next session', async () => {
+  const bridge = createBridge({ mode: 'tcp:0', getBaseId: () => 0x680 });
+  await bridge.start();
+  const a = await client(bridge.port);
+  await until(() => bridge.describe().clients === 1);
+  a.write('X683\r');
+  await until(() => bridge.filterId === 0x683);
+  a.destroy();                                   // killed mid-exchange, never sent X to clear it
+  await until(() => bridge.describe().clients === 0);
+  const b = await client(bridge.port);
+  await until(() => bridge.describe().clients === 1);
+  bridge.fromHub('t6848' + '0000000000000000');
+  await until(() => b.data.includes('t684'));      // every id reaches the new session
+  assert.equal(bridge.filterId, -1);
+  b.destroy();
+  await bridge.stop();
+});

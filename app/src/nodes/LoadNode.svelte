@@ -94,9 +94,11 @@
   // What this load is (its own name, else the output's), and whether it is drawing current right now.
   const isLight = $derived(/^lighting$/i.test(comp?.group ?? ''));
   const title = $derived(data.name || loadTitle(data.label, isLight) || outName || comp?.name || data.component);
-  let lit = $state(false);
+  // the trace buffer is not reactive: poll it (the current shown on the card was read once, at render)
+  let nowA = $state(0);
+  const lit = $derived(nowA > 0.05);
   $effect(() => {
-    const t = setInterval(() => { lit = (points().at(-1)?.[1] ?? 0) > 0.05; }, 200);
+    const t = setInterval(() => { nowA = points().at(-1)?.[1] ?? 0; }, 200);
     return () => clearInterval(t);
   });
 
@@ -138,7 +140,7 @@
     <Spark getPoints={points} live={true} width={196} height={30} windowS={10} />
     <div class="spark-meta">
       <span class="muted">{supply ? `${machine} out ${n}` : 'Not wired'}{share < 1 ? `, ${Math.round(share * 100)} % share` : ''}</span>
-      <span class="num">{supply ? fmtA(points().at(-1)?.[1] ?? 0) : ''}</span>
+      <span class="num">{supply ? fmtA(nowA) : ''}</span>
     </div>
   </div>
   <div class="badges nodrag">

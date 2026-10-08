@@ -70,11 +70,15 @@ export function createBridge(opts = {}) {
   }
 
   function attach(client) {
+    // a new session starts unfiltered, like a USB-CAN adapter that was just opened: a dingoConfig killed
+    // mid-exchange left its X<id> filter in place, and the next one saw only that id (every module offline)
+    filterId = -1;
     clients.add(client);
     em.emit('clients', clients.size);
   }
   function detach(client) {
     clients.delete(client);
+    if (!clients.size) filterId = -1;
     em.emit('clients', clients.size);
   }
   function feedClient(client, chunk) {
