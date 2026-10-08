@@ -84,7 +84,7 @@ at least one test. No TypeScript; JSDoc types welcome.
     { "id": "n5", "type": "cangen",  "pos": {}, "data": { "dbc": "renode/SimEngine.dbc", "frames": [{"id": 512, "cycleMs": 100, "signals": {"RPM": 850}}] } },
     { "id": "n6", "type": "engine",  "pos": {}, "data": { "state": "off", "throttle": 0, "speedKph": 0 } },      // state: off|ign|crank|run
     { "id": "n7", "type": "battery", "pos": {}, "data": { "vocV": 12.6, "riOhm": 0.015, "altV": 14.2 } },
-    { "id": "n8", "type": "wiper",   "pos": {}, "data": { "ratedW": 60, "slowRps": 0.7, "fastRps": 1.2 } },
+    { "id": "n8", "type": "wiper",   "pos": {}, "data": { "ratedW": 60, "slowRps": 0.7, "fastRps": 1.2, "park": "standard" } },   // park: standard|ford (depressed/concealed)
     { "id": "n9", "type": "pwmsrc",  "pos": {}, "data": { "level": "12v", "duty": 50, "freq": 100, "on": true } }   // level: 12v|gnd (open collector)
   ],
   "edges": [ { "id": "e1", "from": { "node": "n1", "handle": "supply" }, "to": { "node": "PDM-01", "handle": "out:1" } } ],

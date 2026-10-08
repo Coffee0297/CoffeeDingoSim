@@ -360,16 +360,18 @@ export async function createStimulus(ctx) {
       const k = e ? Number(e.from.handle.split(':')[1]) : 0;
       return !!(k && ctx.getTelemetry?.(e.from.node)?.digitalOut?.[k - 1]);
     };
-    const st = wipers.get(n.id) || { angleDeg: 0, t: tel?.t ?? 0, sent: '' };
+    const park = n.data?.park === 'ford' ? 'ford' : 'standard';
+    // a Ford depressed-park wiper starts where a parked car leaves it: concealed below the cowl
+    const st = wipers.get(n.id) || { angleDeg: 0, t: tel?.t ?? 0, sent: '', concealed: park === 'ford' };
     const t = tel?.t ?? st.t;
     const powered = ['On', 'Warning'].includes(tel?.outputs?.[sup.n - 1]?.state);
     const run = relay('run'), speed = relay('speed');
-    const r = stepWiper(st.angleDeg, { powered, run, speed, dtS: Math.max(0, Math.min(1, t - st.t)), slowRps: n.data?.slowRps, fastRps: n.data?.fastRps });
-    st.angleDeg = r.angleDeg; st.t = t;
+    const r = stepWiper(st.angleDeg, { powered, run, speed, dtS: Math.max(0, Math.min(1, t - st.t)), slowRps: n.data?.slowRps, fastRps: n.data?.fastRps, park, concealed: st.concealed });
+    st.angleDeg = r.angleDeg; st.t = t; st.concealed = r.concealed;
     wipers.set(n.id, st);
-    // the park switch, when wired to a digital input, closes to ground in the park window
+    // the park switch, when wired to a digital input, closes to ground in the park window (Ford: only when concealed)
     for (const l of moduleLinks(sc, n.id, 'di:', 'park')) ctx.bank.gpio(l.module, `DI${l.n}`, switchPinValue('gnd', r.park));
-    const msg = { type: 'wiper', node: n.id, angleDeg: Math.round(r.angleDeg), run, speed, park: r.park, powered };
+    const msg = { type: 'wiper', node: n.id, angleDeg: Math.round(r.angleDeg), run, speed, park: r.park, powered, concealed: r.concealed, dir: r.dir, parkType: park };
     const key = JSON.stringify(msg);
     if (key !== st.sent) { st.sent = key; ctx.broadcast(msg); }
   }

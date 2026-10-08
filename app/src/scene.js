@@ -169,7 +169,7 @@ export function nodeDefaults(type) {
     case 'cangen': return { dbc: 'renode/SimEngine.dbc', frames: [{ id: 512, cycleMs: 100, signals: { RPM: 850 } }] };
     case 'engine': return { state: 'off', throttle: 0, speedKph: 0 };
     case 'battery': return { vocV: 12.6, riOhm: 0.015, altV: 14.2 };
-    case 'wiper': return { ratedW: 60, slowRps: 0.7, fastRps: 1.2 };
+    case 'wiper': return { ratedW: 60, slowRps: 0.7, fastRps: 1.2, park: 'standard' };
     case 'pwmsrc': return { level: '12v', duty: 50, freq: 100, on: true };
     case 'load': return { component: 'generic_resistive', preset: null, ratedA: 1, ratedW: 13.8, fault: null, guess: false };
     default: return {};
