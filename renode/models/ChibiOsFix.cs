@@ -18,7 +18,7 @@
 // idle thread). Every later ISR then counts two active exceptions, the recomputed RETTOBASE stays 0,
 // no ISR ever preempts again, and the module sits in the idle thread with its threads READY and its CAN
 // FIFO full, silent on the bus. Install() also adds a 1 kHz check: if the CPU is in Thread mode
-// (IPSR = 0) no exception can be active, so any active bit is stale and is completed in the NVIC; the
+// (IPSR = 0) on 3 checks in a row no exception can be active, so the bit is stale and is completed in the NVIC; the
 // pending interrupts then run and their epilogue preempts as usual. StaleActiveCleared counts repairs.
 //
 // repl:     chibiosFix: Miscellaneous.ChibiOsFix @ sysbus 0x5FFF1000
@@ -137,16 +137,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 owner: this, localName: "chibios-stale-active", enabled: true, workMode: WorkMode.Periodic));
         }
 
+        // A bit is completed only after 3 consecutive Thread-mode checks (2 ms) saw it active. A single check
+        // can catch a handler that is genuinely running (it read IPSR = 0 hundreds of times per hour), and
+        // completing that IRQ desyncs Renode's NVIC active stack ("complete not active IRQ", then INVSTATE
+        // faults and wedged cores). A stale bit never clears, so the delay costs nothing.
         private void ClearStaleActive()
         {
-            if((cpu.XProgramStatusRegister & 0x1FF) != 0)
-            {
-                return;   // in a handler: active bits may be genuine
-            }
             var bus = machine.SystemBus;
+            var thread = (cpu.XProgramStatusRegister & 0x1FF) == 0;
             for(var w = 0; w < 8; w++)
             {
-                var active = bus.ReadDoubleWord(0xE000E300 + 4 * (ulong)w);
+                var now = thread ? bus.ReadDoubleWord(0xE000E300 + 4 * (ulong)w) : 0u;
+                var active = now & seen1[w] & seen2[w];
+                seen2[w] = now & seen1[w];
+                seen1[w] = now;
                 for(var b = 0; active != 0 && b < 32; b++, active >>= 1)
                 {
                     if((active & 1) != 0)
@@ -179,5 +183,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ulong windowAddress;
         private CortexM cpu;
         private NVIC nvic;
+        private readonly uint[] seen1 = new uint[8];
+        private readonly uint[] seen2 = new uint[8];
     }
 }

@@ -112,17 +112,34 @@ export async function createSim(opts = {}) {
   // 3 = HardFault (the firmware has no handler or watchdog: it sits there with its outputs latched).
   const EXC = { 2: 'NMI', 3: 'HardFault', 4: 'MemManage', 5: 'BusFault', 6: 'UsageFault', 11: 'SVCall', 14: 'PendSV', 15: 'SysTick' };
   // A CPU stuck in a fault handler is reset, as a watchdog would on a real module (the firmware has none):
-  // seen as a rare UsageFault INVSTATE on ChibiOS's ISR-exit path under Renode (renode/README.md).
+  // seen as a rare UsageFault INVSTATE on ChibiOS's ISR-exit path, and a wedged core (renode/README.md 17, 18).
   const FAULTS = new Set([2, 3, 4, 5, 6]);
   async function diagnoseSilent(module) {
+    if (renode.status !== 'running') return;   // Renode stopping/stopped: every module goes quiet, nothing to diagnose
     let why = 'no CAN frames for 2 s of vehicle time';
     let fault = false;
     try {
-      const c = await renode.inspect(module, [0xE000ED28]);   // CFSR
+      const c = await renode.inspect(module, [0xE000ED28, 0xE000ED10]);   // CFSR, SCR
       const ipsr = Number(c.xpsr) & 0x1ff;
       fault = FAULTS.has(ipsr);
       why += ipsr ? `; CPU stuck in ${EXC[ipsr] ?? (ipsr >= 16 ? `IRQ ${ipsr - 16}` : `exception ${ipsr}`)} at PC ${c.pc}${fault ? `, CFSR ${c.read?.['0xe000ed28']}` : ''}`
                   : `; CPU in thread mode at PC ${c.pc} (BASEPRI ${c.basepri}, PRIMASK ${c.primask})`;
+      // Wedged core: ChibiOS's idle loop never WFIs, so outside deep sleep (SCR.SLEEPDEEP) the instruction
+      // counter must advance with virtual time. Seen frozen at an ISR's first instruction (renode/README.md).
+      if (!fault && c.halted !== 'True' && !(Number(c.read?.['0xe000ed10']) & 4)) {
+        const t0 = await renode.readVtime();
+        await new Promise((r) => setTimeout(r, 500));
+        const c2 = await renode.inspect(module);
+        if (c2.instructions === c.instructions && (await renode.readVtime()) > t0) {
+          why += ', CPU not executing (wedged)';
+          fault = true;
+          if (ipsr >= 16) {   // try waking it first: keeps the module's state, and tells us if the kick works
+            await renode.nudge(module, ipsr - 16);
+            await new Promise((r) => setTimeout(r, 500));
+            if ((await renode.inspect(module)).instructions !== c.instructions) { fault = false; why += `; woken by re-pending IRQ ${ipsr - 16}`; }
+          }
+        }
+      }
     } catch (e) { why += ` (CPU not readable: ${e.message})`; }
     S.renodeLog(`[sim] ${module} stopped sending: ${why}`);
     if (state.modules[module]?.silent) S.setTelemetry(module, { silentWhy: why });

@@ -500,6 +500,13 @@ export function createRenode(opts = {}) {
           read: Object.fromEntries(await Promise.all([].concat(read).filter(Number.isFinite).map(async (a) => ['0x' + a.toString(16), await ask(`sysbus ReadDoubleWord 0x${a.toString(16)}`)]))) };
       } finally { await need().cmd('mach clear'); }
     },
+    /** Wake a wedged core (README sharp edge 18): re-pend `irq` through NVIC STIR, the only NVIC write here. */
+    async nudge(module, irq) {
+      if (!generated?.modules?.includes(module)) throw new Error(`nudge: no simulated module ${module}`);
+      if (!Number.isInteger(irq) || irq < 0 || irq > 239) throw new Error(`nudge: bad IRQ ${irq}`);
+      await checked(`mach set "${module}"`);
+      try { await checked(`sysbus WriteDoubleWord 0xE000EF00 ${irq}`); } finally { await need().cmd('mach clear'); }
+    },
     /** Per-receiver delivery counters of the paced vehicle hub (renode/models/PacedCANHub.cs). */
     async hubStats(watch) { if (Number.isInteger(watch)) await need().cmd(`${DEFAULTS.hub} WatchId ${watch}`); return cleanMonitor(await need().cmd(`${DEFAULTS.hub} Stats`)); },
     async pause() { await need().cmd('pause'); freeRunning = false; await readVtime(); set('paused'); },
