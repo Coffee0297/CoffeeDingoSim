@@ -14,7 +14,7 @@ $nv ?= @<REPO>/renode/test/nv/CB-01.bin
 
 include @renode/models/load_models.py
 # the anchor is resolved against the cwd (the repo root)
-coffeesim_load "renode/platforms/canboard_v2.repl" "CortexMDwt.cs" "ChibiOsFix.cs" "STM32F3_DMA.cs" "STM32F3_ADCv3.cs" "STM32F3_FlashController.cs" "SlcanTcpBridge.cs" "ProfetLoadBank.cs"
+coffeesim_load "renode/platforms/canboard_v2.repl" "CortexMDwt.cs" "ChibiOsFix.cs" "STM32F3_DMA.cs" "STM32F3_ADCv3.cs" "STM32F3_FlashController.cs" "STMCAN_Safe.cs" "SlcanTcpBridge.cs" "ProfetLoadBank.cs"
 
 emulation CreateCANHub "vehicle"
 

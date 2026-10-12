@@ -3,6 +3,7 @@
 // Derived from Renode's platforms/cpus/stm32f4.repl, self-contained (no SVD download, no USB tag).
 // Requires these models to be compiled first (the .resc does it):
 //   include @renode/models/STM32DMA_Circ.cs      circular DMA for the ADC1 scan
+//   include @renode/models/STMCAN_Safe.cs       bxCAN x2, stock STMCAN with its RX FIFOs locked (delivery race)
 //   include @renode/models/STM32F4_I2C_DMA.cs    I2Cv1 master with DMA (ChibiOS)
 //   include @renode/models/Mb85rc256.cs          config FRAM, file-backed
 //   include @renode/models/Mcp9808.cs            board temperature sensor
@@ -153,10 +154,10 @@ elif request.IsRead:
 '''
 
 // ---------------- CAN ----------------
-can1: CAN.STMCAN @ sysbus <0x40006400, +0x400>
+can1: CAN.STMCAN_Safe @ sysbus <0x40006400, +0x400>
     [0-3] -> nvic@[19-22]
 
-can2: CAN.STMCAN @ sysbus <0x40006800, +0x400>
+can2: CAN.STMCAN_Safe @ sysbus <0x40006800, +0x400>
     [0-3] -> nvic@[63-66]
     master: can1
 

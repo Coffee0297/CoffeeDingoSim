@@ -10,6 +10,7 @@ inputs from the simulator. Install Renode first: [`../tools/install-renode.md`](
 |---|---|
 | `platforms/dingopdm_v7.repl` | STM32F446RE platform: 144 MHz core, 72 MHz timers, I2C FRAM + MCP9808, ADC1 on circular DMA, OTG stub, DWT, LEDs, load bank wiring |
 | `models/STM32DMA_Circ.cs` | fork of Renode's `STM32DMA` with CIRC mode and one data unit per peripheral request (ADC scan) |
+| `models/STMCAN_Safe.cs` | Stock `CAN.STMCAN` behind a lock: the CPU reading an RX FIFO raced PacedCANHub's delivery (NullReferenceException at STMCAN.cs:248, Renode exits) |
 | `models/STM32F4_I2C_DMA.cs` | I2Cv1 master with DMA, written against the ChibiOS I2Cv1 driver's event sequence |
 | `models/Mb85rc256.cs` | MB85RC256V FRAM, 2-byte address, file-backed (`Filename`), saved after every write |
 | `models/Mcp9808.cs` | MCP9808 with correct IDs, limits, alert bits; `SetTemperature <C>` |

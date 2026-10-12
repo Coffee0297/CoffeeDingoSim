@@ -2,7 +2,7 @@
 # Rendered by server/renode.js. Paths are absolute (monitor @paths resolve against the Renode
 # install dir; there is no $ORIGIN). Needs the hub "${hub}" to exist (car.resc.hbs creates it).
 include @${models}/load_models.py
-coffeesim_load "${modelsAnchor}" "CortexMDwt.cs" "ChibiOsFix.cs" "STM32F3_DMA.cs" "STM32F3_ADCv3.cs" "STM32F3_FlashController.cs" "SlcanTcpBridge.cs" "ProfetLoadBank.cs"
+coffeesim_load "${modelsAnchor}" "CortexMDwt.cs" "ChibiOsFix.cs" "STM32F3_DMA.cs" "STM32F3_ADCv3.cs" "STM32F3_FlashController.cs" "STMCAN_Safe.cs" "SlcanTcpBridge.cs" "ProfetLoadBank.cs"
 
 mach create "${name}"
 # ${repl} is renode/platforms/${board}.repl with the bank NDJSON port set to ${bankPort}

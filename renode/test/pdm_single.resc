@@ -15,6 +15,7 @@ include @renode/models/STM32DMA_Circ.cs
 include @renode/models/STM32F4_I2C_DMA.cs
 include @renode/models/Mb85rc256.cs
 include @renode/models/Mcp9808.cs
+include @renode/models/STMCAN_Safe.cs
 include @renode/models/SlcanTcpBridge.cs
 include @renode/models/CortexMDwt.cs
 include @renode/models/ChibiOsFix.cs

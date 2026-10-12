@@ -5,6 +5,7 @@
 //   include @renode/models/CortexMDwt.cs                DWT CYCCNT for ChibiOS polled delays (R1)
 //   include @renode/models/STM32F3_ADCv3.cs             ADC1/ADC2 (ADCv3 sequencer, DMA request GPIO)
 //   include @renode/models/STM32F3_DMA.cs               DMA1 with circular mode (master STM32G0DMA)
+//   include @renode/models/STMCAN_Safe.cs               bxCAN, stock STMCAN with its RX FIFOs locked (delivery race)
 //   include @renode/models/STM32F3_FlashController.cs   FLASHv1 controller (KEYR/PER/STRT/PG), file-backed config sector
 // Address map: RM0316 (STM32F303x6/8). IRQ numbers: F303 vector table (ChibiOS STM32F3xx/stm32_isr.h).
 
@@ -164,7 +165,7 @@ adcIrq: Miscellaneous.CombinedInput @ none
 
 // ---------------- CAN (bxCAN) ----------------
 // F303 vectors: 19 USB_HP_CAN_TX, 20 USB_LP_CAN_RX0, 21 CAN_RX1, 22 CAN_SCE
-can1: CAN.STMCAN @ sysbus <0x40006400, +0x400>
+can1: CAN.STMCAN_Safe @ sysbus <0x40006400, +0x400>
     [0-3] -> nvic@[19-22]
 
 // ---------------- timers: every timer clock 72 MHz ----------------
