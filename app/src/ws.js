@@ -101,6 +101,9 @@ export function handle(msg) {
     case 'scene':
       scene.set(msg.scene);
       break;
+    case 'node':   // another client (or a test) changed a stimulus node
+      scene.update((s) => s && { ...s, nodes: s.nodes.map((n) => (n.id === msg.id ? { ...n, data: msg.data } : n)) });
+      break;
     case 'telemetry': {
       modules.update((m) => ({ ...m, [msg.module]: msg }));
       const tr = traceFor(msg.module, Math.max(8, msg.outputs?.length || 0));

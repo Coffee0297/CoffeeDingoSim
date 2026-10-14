@@ -233,6 +233,10 @@ export async function createSim(opts = {}) {
       if (a.kind === 'renode') return api.renodeCmd(a);
       const r = stim.apply(a);
       if (!r.ok) toast('warn', r.error);
+      // every open canvas shows the new knob / switch state, not only the client that sent it (a test
+      // driving the Sim left the user's canvas on OFF while the modules ran Showroom)
+      const n = r.ok && a.node && state.scene?.nodes?.find((x) => x.id === a.node);
+      if (n) broadcast({ type: 'node', id: n.id, data: n.data });
       return r;
     },
 
