@@ -11,10 +11,12 @@
   import RenodePanel from './RenodePanel.svelte';
   import RunsPanel from './RunsPanel.svelte';
   import BusLog from './BusLog.svelte';
+  import CarView from './CarView.svelte';
 
   let palette;
   const TABS = [
     { id: 'chart', label: 'Chart' },
+    { id: 'car', label: 'Car' },
     { id: 'renode', label: 'Renode' },
     { id: 'runs', label: 'Runs' },
     { id: 'bus', label: 'Bus' },
@@ -59,6 +61,7 @@
         </div>
         <div class="panel" role="tabpanel">
           {#if $sideTab === 'chart'}<SideChart />
+          {:else if $sideTab === 'car'}<CarView />
           {:else if $sideTab === 'renode'}<RenodePanel />
           {:else if $sideTab === 'runs'}<RunsPanel />
           {:else}<BusLog />{/if}
