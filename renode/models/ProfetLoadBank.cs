@@ -966,7 +966,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // ChibiOsFix halts the core in STOP mode (Renode has no stop-mode clock gating); a wake source lets it run
-        // on out of the WFI, into the firmware's NVIC_SystemReset.
+        // on out of the WFI, into the firmware's NVIC_SystemReset. Renode's GPIO pins don't reach EXTI, and the
+        // firmware leaves only the EXTI IRQs enabled before the WFI, so nothing would end it: clear tlib's WFI state.
         private void ReleaseStop()
         {
             foreach(var c in sysbus.GetCPUs())
@@ -974,6 +975,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 if(c.IsHalted)
                 {
                     c.IsHalted = false;
+                    CleanWfi(c);
+                }
+            }
+        }
+
+        // TranslationCPU.TlibCleanWfiProcState is a private tlib import (same lookup as ChibiOsFix.FindCleanWfi)
+        private static void CleanWfi(object cpu)
+        {
+            for(var t = cpu.GetType(); t != null; t = t.BaseType)
+            {
+                var f = t.GetField("TlibCleanWfiProcState", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                if(f != null)
+                {
+                    (f.GetValue(cpu) as Action)?.Invoke();
+                    return;
                 }
             }
         }
