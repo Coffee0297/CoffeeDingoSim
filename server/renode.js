@@ -497,6 +497,11 @@ export function createRenode(opts = {}) {
     set('stopped');
   }
 
+  // `mach set` is monitor-global: two of these at once (7 silent modules diagnosed together) read or
+  // reset the wrong machine ("No such command or device: cpu", false "wedged" resets). One at a time.
+  let monLock = Promise.resolve();
+  const oneAtATime = (fn) => { const p = monLock.then(fn, fn); monLock = p.catch(() => {}); return p; };
+
   return {
     get status() { return status; },
     get vtime() { return vtime; },
@@ -506,14 +511,16 @@ export function createRenode(opts = {}) {
     get generated() { return generated; },
     start, stop, kill, readVtime,
     /** Read-only CPU snapshot of one module (diagnosing a module that went silent): PC, halted, instructions run. */
-    async inspect(module, read = []) {
+    inspect(module, read = []) { return oneAtATime(() => this._inspect(module, read)); },
+    async _inspect(module, read = []) {
       const ask = async (c) => cleanMonitor(await need().cmd(c)).split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('(')).pop() ?? '';
+      const readAll = async () => { const o = {}; for (const a of [].concat(read).filter(Number.isFinite)) o['0x' + a.toString(16)] = await ask(`sysbus ReadDoubleWord 0x${a.toString(16)}`); return o; };
       if (!generated?.modules?.includes(module)) throw new Error(`inspect: no simulated module ${module}`);
       await checked(`mach set "${module}"`);
       try {
         return { module, pc: await ask('cpu PC'), halted: await ask('cpu IsHalted'), basepri: await ask('cpu BasePri'), primask: await ask('cpu PRIMASK'), xpsr: await ask('cpu XProgramStatusRegister'), instructions: await ask('cpu ExecutedInstructions'),
           // read-only: addresses are numbers, formatted here, never raw monitor text
-          read: Object.fromEntries(await Promise.all([].concat(read).filter(Number.isFinite).map(async (a) => ['0x' + a.toString(16), await ask(`sysbus ReadDoubleWord 0x${a.toString(16)}`)]))) };
+          read: await readAll() };
       } finally { await need().cmd('mach clear'); }
     },
     /** Re-time a running emulation when the scene's quantum changes (a PWM source card added or removed). */
@@ -542,7 +549,8 @@ export function createRenode(opts = {}) {
      * Reset one module: runs the generated `reset_<id>` macro (mach set, machine Reset, LoadELF,
      * chibiosFix Install, cal words). `machine Reset` alone would leave the CPU without firmware.
      */
-    async reset(module) {
+    reset(module) { return oneAtATime(() => this._reset(module)); },
+    async _reset(module) {
       if (!scene?.modules?.some((x) => x.id === module)) throw new Error(`unknown module ${module}`);
       if (generated && !generated.modules.includes(module)) throw new Error(`${module} is not simulated`);
       const running = freeRunning;
@@ -551,7 +559,8 @@ export function createRenode(opts = {}) {
       onLog(`[sim] ${module} reset`);
     },
     /** Attach a module's CAN controller to the hub (bring-up of a module created isolated). */
-    async connectCan(module, hub = DEFAULTS.hub) {
+    connectCan(module, hub = DEFAULTS.hub) { return oneAtATime(() => this._connectCan(module, hub)); },
+    async _connectCan(module, hub = DEFAULTS.hub) {
       if (!generated?.isolated?.includes(module)) return;   // generated on the hub already
       await checked(`mach set "${module}"`);
       try {

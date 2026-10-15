@@ -313,6 +313,7 @@ export async function createStimulus(ctx) {
           e.set({ fanOn: tel?.outputs?.[sup.n - 1]?.state === 'On' });
         }
         const sig = e.step(tickMs);
+        if (e.get?.().state === 'off') continue;   // an unpowered ECU is silent: lets the car's CAN go idle and sleep
         const db = loadDbc(n.data?.dbc || 'renode/SimEngine.dbc');
         for (const msg of messagesOf(db)) {
           const data = dbc.encodeMessage(db, msg.name, sig);

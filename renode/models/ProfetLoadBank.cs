@@ -196,6 +196,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
                 timerPresent = null;
                 wasDeepSleep = false;
+                clearSleepDeep = true;   // a real reset clears SCB->SCR; Renode keeps SLEEPDEEP set after NVIC_SystemReset
                 // the GPIO ports reset their input state too: re-assert the DI levels the harness holds
                 for(var d = 0; d < nDi; d++)
                 {
@@ -839,6 +840,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void SleepAndWake()
         {
+            if(clearSleepDeep && TryReadBus(0xE000ED10, ref scbScr) && TryWriteBus(0xE000ED10, scbScr & ~0x4u))
+            {
+                clearSleepDeep = false;
+            }
             if(ticks % 10 == 0)
             {
                 TryReadBus(0xE000ED10, ref scbScr);              // SCB->SCR, non-blocking (see TryReadBus)
@@ -855,6 +860,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 lastPulse = ticks;
                 Connections[8].Toggle();
+                ReleaseStop();
                 Emit("wake-pulse");
             }
         }
@@ -942,8 +948,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Warning, "gpio: DI{0} does not exist on {1}", di, Board);
                 return;
             }
+            var edge = diState[di - 1] != value;
             diState[di - 1] = value;
             Connections[di - 1].Set(value);
+            if(edge && wasDeepSleep)
+            {
+                ReleaseStop();   // ponytail: any DI edge wakes; the firmware's per-DI wake mask is not modelled
+            }
+        }
+
+        // ChibiOsFix halts the core in STOP mode (Renode has no stop-mode clock gating); a wake source lets it run
+        // on out of the WFI, into the firmware's NVIC_SystemReset.
+        private void ReleaseStop()
+        {
+            foreach(var c in sysbus.GetCPUs())
+            {
+                if(c.IsHalted)
+                {
+                    c.IsHalted = false;
+                }
+            }
         }
 
         private void SetBoardTemperature(double c)
@@ -1122,6 +1146,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        // SLEEPDEEP clear on a module reset (see Reset); same no-wait lock as TryReadBus
+        private bool TryWriteBus(ulong addr, uint value)
+        {
+            uint dummy = 0;
+            if(!TryReadBus(addr, ref dummy) || !busTargets.TryGetValue(addr, out var t) || t == null || !System.Threading.Monitor.TryEnter(t.Item2))
+            {
+                return false;
+            }
+            try
+            {
+                t.Item1.WriteDoubleWord(t.Item3, value);
+                return true;
+            }
+            finally
+            {
+                System.Threading.Monitor.Exit(t.Item2);
+            }
+        }
+
         private void TryReadTimer(int o)
         {
             if(timerRegs == null) timerRegs = new TimerRegs[timers.Length];
@@ -1210,7 +1253,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly Dictionary<ulong, Tuple<IDoubleWordPeripheral, object, long>> busTargets = new Dictionary<ulong, Tuple<IDoubleWordPeripheral, object, long>>();
         private double vbatt, noisePct, boardTempC = 25;
         private long ticks, lastPulse = -1000;
-        private bool wasDeepSleep;
+        private bool wasDeepSleep, clearSleepDeep;
         private int frameSeen, forcePulse;
         private object tempSensor;
         private string machineName;

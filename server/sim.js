@@ -127,10 +127,15 @@ export async function createSim(opts = {}) {
       // Wedged core: ChibiOS's idle loop never WFIs, so outside deep sleep (SCR.SLEEPDEEP) the instruction
       // counter must advance with virtual time. Seen frozen at an ISR's first instruction (renode/README.md).
       if (!fault && c.halted !== 'True' && !(Number(c.read?.['0xe000ed10']) & 4)) {
+        // A module muted on purpose (fleet "sleep now") is quiet but running: one 500 ms look caught a
+        // counter that had not moved yet and reset all of them. Wedged = no instruction over >= 50 ms vtime.
         const t0 = await renode.readVtime();
-        await new Promise((r) => setTimeout(r, 500));
-        const c2 = await renode.inspect(module);
-        if (c2.instructions === c.instructions && (await renode.readVtime()) > t0) { fault = true; why += ', CPU not executing (wedged)'; }
+        let moved = false;
+        for (let i = 0; i < 3 && !moved; i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          moved = (await renode.inspect(module)).instructions !== c.instructions;
+        }
+        if (!moved && (await renode.readVtime()) - t0 >= 0.05) { fault = true; why += ', CPU not executing (wedged)'; }
       }
     } catch (e) { why += ` (CPU not readable: ${e.message})`; }
     S.renodeLog(`[sim] ${module} stopped sending: ${why}`);

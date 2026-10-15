@@ -55,6 +55,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public uint LastWfiInHandlerPc { get; private set; }
         public ulong WedgesHealed { get; private set; }   // handler-mode stalls woken (see CheckWedge)
         public ulong WedgesInWfi { get; private set; }    // ... of which the core was in tlib's WFI state
+        public ulong StopEntries { get; private set; }    // EnterStopMode WFIs held (see OnWfiStateChange)
 
         public uint ReadDoubleWord(long offset)
         {
@@ -227,6 +228,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return;
             }
             WfiEntries++;
+            // STOP mode (firmware EnterStopMode: SLEEPDEEP, interrupts off, WFI). On silicon the clocks stop so
+            // only a wake line (EXTI) ends it; in Renode the timers keep ticking and the first tick ends the WFI
+            // at once (the module "slept" and reset immediately, forever). Halt the core: the load bank releases it
+            // on a wake source (CAN frame, DI edge, forced pulse), then the firmware resets as on a real wake.
+            if((cpu.XProgramStatusRegister & 0x1FF) == 0 && cpu.PRIMASK != 0 && (machine.SystemBus.ReadDoubleWord(0xE000ED10) & 0x4) != 0)
+            {
+                StopEntries++;
+                cpu.IsHalted = true;
+                this.Log(LogLevel.Info, "ChibiOsFix: STOP mode at PC 0x{0:X}: core held until a wake source", (uint)cpu.PC);
+                return;
+            }
             if((cpu.XProgramStatusRegister & 0x1FF) != 0)
             {
                 WfiEntriesInHandler++;
