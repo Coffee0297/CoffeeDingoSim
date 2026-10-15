@@ -109,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             peak = new double[nOut];
             raw = new uint[nOut];
             on = new bool[nCh];
+            lastOn = new bool[nCh];
             duty = new double[nCh];
             analogMv = new double[nAn];
             diState = new bool[8];
@@ -650,7 +651,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 SleepAndWake();
 
-                if(ticks % 100 == 0)
+                // 10 Hz, plus a sample on every output switch: each machine's 10 Hz grid has its own phase, so
+                // lamps flashing in step on the car showed up to 100 ms apart in the UI
+                var switched = !on.SequenceEqual(lastOn);
+                if(switched)
+                {
+                    Array.Copy(on, lastOn, on.Length);
+                }
+                if(switched || ticks % 100 == 0)
                 {
                     LoadBankHost.Broadcast(Trace());
                 }
@@ -1239,7 +1247,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly uint[] isCh, raw;
         private readonly int[] dselOf;
         private readonly ulong[] timers;
-        private readonly bool[] on, diState;
+        private readonly bool[] on, lastOn, diState;
         private readonly bool[] inPin = new bool[16];
         private readonly bool[] pwmActive = new bool[8];
         private readonly uint tempRaw, vrefRaw;
