@@ -66,8 +66,10 @@ namespace Antmicro.Renode.Tools.Network
                 var port = new Port(this, iface, machine);
                 ports.Add(iface, port);
                 iface.FrameSent += port.OnSent;
+                // enabled only while frames are queued (Port.Enqueue / DeliverOne): an always-on 4 kHz entry on
+                // every receiver woke each idle CPU ~4000 times a second and halved the speed of a 7-module car
                 machine.ClockSource.AddClockEntry(new ClockEntry(period: 1, frequency: deliveryHz, handler: port.DeliverOne,
-                    owner: iface, localName: "can-pace", enabled: true, workMode: WorkMode.Periodic));
+                    owner: iface, localName: "can-pace", enabled: false, workMode: WorkMode.Periodic));
             }
         }
 
@@ -149,11 +151,24 @@ namespace Antmicro.Renode.Tools.Network
             // Runs in this receiver's time domain (HandleTimeDomainEvent).
             public void Enqueue(CANMessageFrame frame)
             {
+                bool arm;
                 lock(queue)
                 {
                     queue.Enqueue(frame);
                     peak = Math.Max(peak, queue.Count);
+                    arm = !armed;
+                    armed = true;
                 }
+                if(arm)
+                {
+                    // first delivery one frame time from now, as the periodic entry would have done
+                    Machine.ClockSource.ExchangeClockEntryWith(DeliverOne, e => e.With(enabled: true, value: 0));
+                }
+            }
+
+            private void Disarm()
+            {
+                Machine.ClockSource.ExchangeClockEntryWith(DeliverOne, e => e.With(enabled: false));
             }
 
             // Clock entry on the receiver's machine: at most one frame per frame time. A frame is also held
@@ -169,8 +184,16 @@ namespace Antmicro.Renode.Tools.Network
                 {
                     if(queue.Count == 0)
                     {
-                        return;
+                        armed = false;
                     }
+                }
+                if(!armed)
+                {
+                    Disarm();
+                    return;
+                }
+                lock(queue)
+                {
                     if(FifoPending() >= 2 && held < MaxHoldTicks)
                     {
                         held++;
@@ -229,6 +252,7 @@ namespace Antmicro.Renode.Tools.Network
             private Func<uint> fifoProbe;
             private bool probeOk;
             private int held;
+            private bool armed;   // the can-pace entry is enabled (frames queued)
             private ulong holds;
             private const int MaxHoldTicks = 40;   // ~10 ms at 500 kbit/s
             private int peak;

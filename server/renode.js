@@ -37,6 +37,18 @@ export const DEFAULTS = { monitorPort: 1234, bridgePort: 7777, bankPort: 7800, h
 
 // ---------------------------------------------------------------- install -----------------
 
+/**
+ * Windows 11 power throttling (EcoQoS) parks a process on the efficiency cores while another app has the
+ * focus: with the Sim UI open in the browser Renode ran at ~0.3x real time instead of ~0.55x (hybrid P/E-core CPU).
+ * Opt Renode out and raise it to AboveNormal. Best effort: a failure only costs speed.
+ */
+function noThrottle(pid, onLog) {
+  const ps = `Add-Type 'using System;using System.Runtime.InteropServices;public static class PT{[StructLayout(LayoutKind.Sequential)]public struct S{public uint V,C,M;}[DllImport("kernel32.dll")]public static extern bool SetProcessInformation(IntPtr h,int c,ref S i,int n);}';`
+    + `$p=Get-Process -Id ${Number(pid)};$s=New-Object PT+S;$s.V=1;$s.C=1;$s.M=0;`
+    + `[void][PT]::SetProcessInformation($p.Handle,4,[ref]$s,12);$p.PriorityClass='AboveNormal'`;
+  execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true }, (e) => onLog(e ? `[sim] power throttling opt-out failed: ${e.message}` : '[sim] Renode: power throttling off, priority AboveNormal'));
+}
+
 /** Search `dir` (two levels deep) for the Renode executable. */
 export function findRenodeExe(dir) {
   if (!dir || !fs.existsSync(dir)) return null;
@@ -437,6 +449,7 @@ export function createRenode(opts = {}) {
       // silently end) the server; the server died this way twice, exit 127, nothing logged
       const me = (opts.spawnImpl || spawn)(exe, args, { cwd: path.dirname(exe), windowsHide: true, detached: process.platform === 'win32' });
       proc = me;
+      if (process.platform === 'win32' && !opts.spawnImpl && me.pid) noThrottle(me.pid, onLog);
       me.stdout?.on('data', logLines);
       me.stderr?.on('data', logLines);
       me.on('exit', (code) => {

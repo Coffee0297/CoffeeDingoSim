@@ -59,6 +59,24 @@
     if (!$scene) return;
     sendScene({ ...$scene, firmware: { ...($scene.firmware || {}), bootloader: v } });
   }
+  // Speed = the global quantum (server/renode.js sceneQuantumUs). A longer quantum syncs the 7 machines less
+  // often: 5 ms runs ~30 % faster than 1 ms, but CAN replies and pin edges land up to 5 ms late.
+  const SPEEDS = [{ us: 0, label: 'Accurate (default)' }, { us: 2000, label: 'Faster (2 ms)' }, { us: 5000, label: 'Fastest (5 ms)' }];
+  function setSpeed(us) {
+    if (!$scene) return;
+    const globals = { ...($scene.globals || {}) };
+    if (us) globals.quantumUs = us; else delete globals.quantumUs;
+    sendScene({ ...$scene, globals });
+  }
+  // measured virtual / wall time over the last ~10 s
+  let speedSamples = [];
+  let ratio = $state(null);
+  $effect(() => {
+    const v = $renode.vtime, now = Date.now();
+    speedSamples = [...speedSamples.filter(([, t]) => now - t < 10000), [v, now]];
+    const [v0, t0] = speedSamples[0];
+    ratio = st === 'running' && now - t0 > 2000 && v >= v0 ? (v - v0) / ((now - t0) / 1000) : null;
+  });
   const tags = $derived(releases.filter((r) => r.tag !== 'testing-latest'));
   const STATUS_TEXT = { stopped: 'Stopped', downloading: 'Fetching firmware', starting: 'Starting', running: 'Running', paused: 'Paused', error: 'Error' };
 </script>
@@ -79,6 +97,12 @@
     <div class="line">
       <label>Run for <input class="input num" type="number" min="0.1" step="1" bind:value={runSeconds} /> s of vehicle time</label>
       <button class="btn sm" onclick={() => cmd('runfor', { seconds: Number(runSeconds) })} disabled={st === 'stopped' || st === 'error'}>Run</button>
+    </div>
+    <div class="line">
+      <label>Speed <select class="input" value={Number($scene?.globals?.quantumUs) || 0} onchange={(e) => setSpeed(Number(e.currentTarget.value))} aria-label="Simulation speed">
+        {#each SPEEDS as o}<option value={o.us}>{o.label}</option>{/each}
+      </select></label>
+      <span class="muted">{ratio === null ? '' : `${ratio.toFixed(2)}× real time`}</span>
     </div>
   </div>
 
