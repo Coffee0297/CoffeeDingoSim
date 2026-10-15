@@ -871,6 +871,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ReleaseStop();
                 Emit("wake-pulse");
             }
+            ApplyWake();
         }
 
         // ---------------------------------- PWM source on a DI ----------------------------------------
@@ -966,33 +967,32 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // ChibiOsFix halts the core in STOP mode (Renode has no stop-mode clock gating); a wake source lets it run
-        // on out of the WFI, into the firmware's NVIC_SystemReset. Renode's GPIO pins don't reach EXTI, and the
-        // firmware leaves only the EXTI IRQs enabled before the WFI, so nothing would end it: clear tlib's WFI state.
+        // on out of the WFI, into the firmware's NVIC_SystemReset. Renode's GPIO pins don't reach EXTI and the
+        // firmware leaves only the EXTI IRQs enabled for its WFI, so pend EXTI15_10 (IRQ 40 on the F303 and F4)
+        // as a real wake edge would, then un-halt: the core ends the WFI on its own thread. Done from the bank
+        // tick (TryWriteBus can find the bus busy: retried next tick).
         private void ReleaseStop()
         {
+            wakeRequested = true;
+        }
+
+        private void ApplyWake()
+        {
+            if(!wakeRequested || !TryWriteBus(0xE000E204, 1u << (40 - 32)))   // NVIC ISPR1
+            {
+                return;
+            }
+            wakeRequested = false;
             foreach(var c in sysbus.GetCPUs())
             {
                 if(c.IsHalted)
                 {
                     c.IsHalted = false;
-                    CleanWfi(c);
                 }
             }
         }
 
-        // TranslationCPU.TlibCleanWfiProcState is a private tlib import (same lookup as ChibiOsFix.FindCleanWfi)
-        private static void CleanWfi(object cpu)
-        {
-            for(var t = cpu.GetType(); t != null; t = t.BaseType)
-            {
-                var f = t.GetField("TlibCleanWfiProcState", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                if(f != null)
-                {
-                    (f.GetValue(cpu) as Action)?.Invoke();
-                    return;
-                }
-            }
-        }
+        private volatile bool wakeRequested;
 
         private void SetBoardTemperature(double c)
         {
