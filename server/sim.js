@@ -7,6 +7,7 @@ import * as S from './state.js';
 import { createBank } from './bank.js';
 import { createBus } from './bus.js';
 import { createBridge } from './bridge.js';
+import { announce } from './mdns.js';
 import { createStimulus } from './stimulus.js';
 import { createRenode, sceneQuantumUs } from './renode.js';
 import { resolveFirmware, listReleases } from './firmware.js';
@@ -42,7 +43,7 @@ export async function createSim(opts = {}) {
   const bridges = bridgeModes.map((mode) => createBridge({ mode, getBaseId: firstPdmBase, toHub: (line) => bus.writeLine(line) }));
   const bridge = bridges[0];
 
-  let saveTimer = null;
+  let saveTimer = null, stopMdns = null;
   const persistSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { S.saveScene(); } catch (e) { toast('error', `scene save failed: ${e.message}`); } }, 500); saveTimer.unref?.(); };
 
   const stim = await createStimulus({
@@ -203,8 +204,11 @@ export async function createSim(opts = {}) {
         state.bridge.mode = up.size ? [...up].join(',') : 'none';
       };
       for (let i = 0; i < bridges.length; i++) await tryBridge(bridges[i], bridgeModes[i]);
+      // announce the TCP bridge on the network like a WiFi-CAN bridge would (dingoConfig "Search the network")
+      const tcp = bridges.find((b) => b.describe().mode.startsWith('tcp:'));
+      if (tcp && !stopMdns) stopMdns = announce({ getPort: () => (state.bridge.mode !== 'none' ? tcp.port : null), log: (m) => console.log(m) });
     },
-    async stopLinks() { for (const t of bridgeRetry) clearTimeout(t); bridgeRetry = []; stim.stop(); bank.stop(); bus.stop(); for (const b of bridges) await b.stop(); },
+    async stopLinks() { stopMdns?.(); stopMdns = null; for (const t of bridgeRetry) clearTimeout(t); bridgeRetry = []; stim.stop(); bank.stop(); bus.stop(); for (const b of bridges) await b.stop(); },
 
     /** Full scene replace (UI `scene` message, POST /api/scene). */
     setScene(scene) {
