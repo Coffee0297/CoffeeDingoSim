@@ -123,7 +123,8 @@ export async function createSim(opts = {}) {
       const c = await renode.inspect(module, [0xE000ED28, 0xE000ED10]);   // CFSR, SCR
       const ipsr = Number(c.xpsr) & 0x1ff;
       fault = FAULTS.has(ipsr);
-      why += ipsr ? `; CPU stuck in ${EXC[ipsr] ?? (ipsr >= 16 ? `IRQ ${ipsr - 16}` : `exception ${ipsr}`)} at PC ${c.pc}${fault ? `, CFSR ${c.read?.['0xe000ed28']}` : ''}`
+      // only a fault handler is stuck; any other exception is just what the CPU happened to be doing (a timer tick)
+      why += ipsr ? `; CPU ${fault ? 'stuck in' : 'running, caught in'} ${EXC[ipsr] ?? (ipsr >= 16 ? `IRQ ${ipsr - 16}` : `exception ${ipsr}`)} at PC ${c.pc}${fault ? `, CFSR ${c.read?.['0xe000ed28']}` : ''}`
                   : `; CPU in thread mode at PC ${c.pc} (BASEPRI ${c.basepri}, PRIMASK ${c.primask})`;
       // Wedged core: ChibiOS's idle loop never WFIs, so outside deep sleep (SCR.SLEEPDEEP) the instruction
       // counter must advance with virtual time. Seen frozen at an ISR's first instruction (renode/README.md).
