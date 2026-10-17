@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { ROOT, events } from './state.js';
+import { saveDbc, readDbc } from './dbcfiles.js';
 import { createSim, ensureDirs } from './sim.js';
 import { readProject } from './project.js';
 
@@ -77,6 +78,8 @@ export async function startServer(sim, opts = {}) {
         return sendJson(res, 200, readProject(q).json);
       }
       if (req.method === 'POST' && p === '/api/scene') { const b = await readBody(req); return sendJson(res, 200, sim.setScene(b.scene || b)); }
+      if (req.method === 'POST' && p === '/api/dbc') { const b = await readBody(req); try { return sendJson(res, 200, saveDbc(b.name, b.text)); } catch (e) { return sendJson(res, 400, { error: e.message }); } }
+      if (req.method === 'GET' && p === '/api/dbc') { try { return sendJson(res, 200, readDbc(u.searchParams.get('path') || '')); } catch (e) { return sendJson(res, 404, { error: e.message }); } }
       if (req.method === 'GET' && p === '/api/firmware/releases') return sendJson(res, 200, await sim.listReleases());
       if (req.method === 'GET' && p === '/api/runs') return sendJson(res, 200, sim.listRuns());
       if (req.method === 'GET' && p.startsWith('/api/run/')) return sendJson(res, 200, sim.getRun(decodeURIComponent(p.slice(9))));

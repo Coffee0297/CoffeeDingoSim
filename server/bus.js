@@ -189,6 +189,9 @@ export async function createBus(opts = {}) {
     inject(frame, source = 'sim') {
       const line = slcan.encode(frame);
       const ok = writeLine(line);
+      // the hub does not echo a frame to its sender: hand it to the dingoConfig bridge too, or the app never sees
+      // what the Sim sends (an ECU from a DBC, the engine, a keypad) while the modules do
+      if (ok) em.emit('line', line.replace(/[\r\n]+$/, ''));
       em.emit('frame', { id: frame.id, ext: !!frame.ext, dlc: frame.dlc ?? frame.data.length, data: Array.from(frame.data), dir: 'tx', source });
       return ok;
     },

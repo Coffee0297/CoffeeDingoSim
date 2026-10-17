@@ -141,13 +141,14 @@ export async function createStimulus(ctx) {
   const mutated = () => ctx.onSceneMutated?.();
 
   function loadDbc(rel) {
-    if (dbcCache.has(rel)) return dbcCache.get(rel);
     const p = path.isAbsolute(rel) ? rel : path.join(ROOT, rel);
+    const key = `${rel}@${fs.existsSync(p) ? fs.statSync(p).mtimeMs : 0}`;   // a DBC uploaded again under the same name is read again
+    if (dbcCache.has(key)) return dbcCache.get(key);
     let text = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
     if (!text && /SimEngine\.dbc$/.test(rel)) text = SIM_ENGINE_FALLBACK_DBC;
     let db = null;
     try { db = text ? dbc.parseDbc(text) : null; } catch { db = null; }
-    dbcCache.set(rel, db);
+    dbcCache.set(key, db);
     return db;
   }
   const messagesOf = (db) => (db?.messages instanceof Map ? [...db.messages.values()] : Array.isArray(db?.messages) ? db.messages : Object.values(db?.messages || {}));
