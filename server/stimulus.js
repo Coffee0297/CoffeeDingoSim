@@ -321,6 +321,10 @@ export async function createStimulus(ctx) {
           if (data) ctx.bus.inject({ id: msg.id, dlc: data.length, data: Array.from(data) }, 'engine');
         }
       } else if (n.type === 'cangen') {
+        // wired to a module output (its supply), it sends only while that output is on: an ECU or TCU on the
+        // ignition goes quiet with the key off, so the car can sleep. Not wired: always sends.
+        const sup = moduleLinks(sc, n.id, 'out:', 'supply')[0];
+        if (sup && ctx.getTelemetry?.(sup.module)?.outputs?.[sup.n - 1]?.state !== 'On') continue;
         const db = n.data?.dbc ? loadDbc(n.data.dbc) : null;
         (n.data?.frames || []).forEach((f, i) => {
           const key = `${n.id}:${i}`;

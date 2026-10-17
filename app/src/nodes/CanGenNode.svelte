@@ -2,7 +2,7 @@
   // CAN generator: frames from a DBC, one slider per signal (its own range from the DBC). Values are scene data
   // (the server broadcasts the frames at their cycle times), so edits go through the debounced scene update.
   // Load DBC… uploads a file into the scene folder (POST /api/dbc); its messages are offered as frames to send.
-  import { useSvelteFlow } from '@xyflow/svelte';
+  import { Handle, Position, useSvelteFlow } from '@xyflow/svelte';
 
   let { id, data, selected } = $props();
   const { updateNodeData } = useSvelteFlow();
@@ -58,6 +58,7 @@
 </script>
 
 <div class="node cangen" class:selected>
+  <Handle type="source" position={Position.Left} id="supply" class="handle-out" title="Power (optional): wire it to a module output and it sends only while that output is on" />
   <div class="node-head"><span>{data.name || 'CAN generator'}</span><span class="spacer"></span><span class="faint" title={data.dbc || ''}>{(data.dbc || 'no DBC').split('/').pop()}</span></div>
   <div class="load nodrag">
     <button class="btn sm" disabled={busy} onclick={() => fileEl.click()}>{busy ? 'Loading…' : data.dbc ? 'Load another DBC…' : 'Load DBC…'}</button>
