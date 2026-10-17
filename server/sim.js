@@ -15,6 +15,8 @@ import { createRecorder, replay as replayRun, readRun, markGolden, diffRuns } fr
 import { importProject } from './project.js';
 import { getComponents } from './compat.js';
 import { bringUp, modulesToIsolate, waitBoot } from './bringup.js';
+import { createVirtualBootloader } from './vblt.js';
+import * as slcan from '../lib/slcan.js';
 
 const BUS_MSGS_PER_S = 20;
 
@@ -40,7 +42,9 @@ export async function createSim(opts = {}) {
   // Several dingoConfig transports can run at once, comma-separated: e.g. `tcp:7778,serial:COM5` serves the
   // fork over TCP and the original dingoConfig over a virtual COM pair on the same simulated bus.
   const bridgeModes = String(bridgeMode).split(',').map((m) => m.trim()).filter(Boolean);
-  const bridges = bridgeModes.map((mode) => createBridge({ mode, getBaseId: firstPdmBase, toHub: (line) => bus.writeLine(line) }));
+  // a frame from dingoConfig to a module in its (virtual) bootloader is answered here, not put on the hub
+  const fromTool = (line) => { const f = slcan.decode(line); return !!(f && f.data && vblt.fromTool({ id: f.id, data: Array.from(f.data) })); };
+  const bridges = bridgeModes.map((mode) => createBridge({ mode, getBaseId: firstPdmBase, toHub: (line) => { if (!fromTool(line)) bus.writeLine(line); } }));
   const bridge = bridges[0];
 
   let saveTimer = null, stopMdns = null;
@@ -63,6 +67,32 @@ export async function createSim(opts = {}) {
     onLog: (l) => S.renodeLog(l),
     inject: (f) => bus.inject(f, 'sim'),
   });
+  // firmware updates over CAN: the Sim plays OpenBLT (server/vblt.js); a flashed module runs the matching ELF
+  const vblt = createVirtualBootloader({
+    modules: () => state.scene?.modules ?? [],
+    inject: (f) => bus.inject(f, 'bootloader'),
+    hold: (id, on) => renode.hold(id, on),
+    // Renode keeps code it translated from the old image, so a module cannot switch firmware in place: its new
+    // ELF is recorded in the scene, and once no module waits in its bootloader any more the emulation restarts
+    // (a power cycle of the car) and every updated module boots its new firmware.
+    run: async (id, elf) => {
+      const m = state.scene?.modules?.find((x) => x.id === id);
+      if (m) { m.elf = elf; persistSoon(); }
+      restartSoon();
+    },
+    elfDirs: () => [...new Set([...Object.values(firmwarePaths ?? {}).map((p) => path.dirname(p)), path.join(S.CACHE_DIR, 'firmware')])],
+    log: (l) => S.renodeLog(l),
+  });
+  let restartTimer = null;
+  function restartSoon() {
+    clearTimeout(restartTimer);
+    restartTimer = setTimeout(async () => {
+      if (vblt.held().length) return restartSoon();   // another module is being updated
+      S.renodeLog('[vblt] restarting the emulation: updated modules boot their new firmware');
+      try { await api.startRenode({}); } catch (e) { S.renodeLog(`[vblt] restart failed: ${e.message}`); }
+    }, 10000);
+    restartTimer.unref?.();
+  }
   const recorder = createRecorder({ getVtime: () => state.renode.vtime, getSceneName: () => state.sceneName, getFirmware: () => state.scene?.firmware ?? null });
 
   // ------------------------------------------------------------ link wiring --------------

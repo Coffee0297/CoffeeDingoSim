@@ -223,7 +223,8 @@ export function generateResc(scene, firmwarePaths, opt = {}) {
       repl: fwd(repls.get(board)),
       models: fwd(path.join(ROOT, 'renode', 'models')),
       modelsAnchor: fwd(srcRepl),
-      elf: fwd(path.resolve(firmwarePaths[m.kind])),
+      // a firmware update over CAN (server/vblt.js) leaves the module on that ELF: m.elf, when it still exists
+      elf: fwd(path.resolve(m.elf && fs.existsSync(m.elf) ? m.elf : firmwarePaths[m.kind])),
       nv: fwd(path.join(nvDir, `${m.id}.bin`)),
       hub: o.hub, bankPort: o.bankPort, bridgePort: o.bridgePort,
       calWords: calWordLines(m.kind),
@@ -570,6 +571,13 @@ export function createRenode(opts = {}) {
       if (running) await need().cmd('pause');
       try { await checked(`runMacro $${resetMacroName(module)}`, 120000, { until: MONITOR_PROMPT }); } finally { if (running) await need().cmd('start'); }
       onLog(`[sim] ${module} reset`);
+    },
+    /** Hold a module (as if it sat in its bootloader) or let it run again: its machine alone is paused. */
+    hold(module, on) { return oneAtATime(() => this._hold(module, on)); },
+    async _hold(module, on) {
+      if (!generated?.modules?.includes(module)) throw new Error(`${module} is not simulated`);
+      await checked(`mach set "${module}"`);
+      try { await checked(on ? 'machine Pause' : 'machine Start'); } finally { await need().cmd('mach clear'); }
     },
     /** Attach a module's CAN controller to the hub (bring-up of a module created isolated). */
     connectCan(module, hub = DEFAULTS.hub) { return oneAtATime(() => this._connectCan(module, hub)); },
