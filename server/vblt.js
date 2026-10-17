@@ -88,6 +88,8 @@ export function createVirtualBootloader(o) {
 
   return {
     held: () => [...held.keys()],
+    /** The module restarted (reset, or the emulation restarted): it runs its app again, so it is out of the bootloader. */
+    release(id) { if (id == null) held.clear(); else held.delete(id); },
     /**
      * A frame from the tool (dingoConfig). Returns true when the Sim handled it and it must not reach the hub.
      * @param {{id:number,data:number[]}} f

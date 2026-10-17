@@ -324,6 +324,7 @@ export async function createSim(opts = {}) {
       if (!state.scene?.modules?.length) throw new Error('scene has no modules — populate from a project first');
       await api.ensureFirmware(firmware);
       applySceneSideEffects();
+      vblt.release();   // a power cycle: every module boots its app (a request left half-done would swallow its config traffic)
       const nvDir = path.join(S.sceneDir(state.sceneName), 'nv');
       fs.mkdirSync(nvDir, { recursive: true });
       const only = Array.isArray(state.scene.globals?.simModules) ? state.scene.globals.simModules : null;
@@ -384,6 +385,7 @@ export async function createSim(opts = {}) {
      */
     async resetModule(module, { tries = 2, bootMs = 12000 } = {}) {
       const m = state.scene?.modules?.find((x) => x.id === module);
+      vblt.release(module);
       for (let k = 1; k <= tries; k++) {
         await renode.reset(module);
         if (!m || !bus.connected || !renode.freeRunning) return { module, answered: null }; // paused: nothing would answer

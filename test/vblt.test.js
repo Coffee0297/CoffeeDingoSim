@@ -49,3 +49,12 @@ test('vblt: an image no ELF matches leaves the module on its firmware', () => {
   assert.equal(imageMatchesElf(new Map([[0x08004000, 7]]), segs), false);
   assert.equal(imageMatchesElf(new Map(), segs), false);
 });
+
+test('vblt: a module that restarts is out of its bootloader (its config traffic reaches it again)', () => {
+  const v = createVirtualBootloader({ modules: () => [{ id: 'CB-1', kind: 'canboard', baseId: 0x660 }], inject: () => {}, hold: async () => {}, run: async () => {}, elfDirs: () => [], log: () => {} });
+  v.fromTool({ id: 0x661, data: [33, 0, 0, 0, 0, 0, 0, 0] });
+  assert.equal(v.fromTool({ id: 0x661, data: [31, 0, 0, 0, 0, 0, 0, 0] }), true);   // swallowed while held
+  v.release('CB-1');
+  assert.deepEqual(v.held(), []);
+  assert.equal(v.fromTool({ id: 0x661, data: [31, 0, 0, 0, 0, 0, 0, 0] }), false);
+});
