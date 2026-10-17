@@ -36,3 +36,20 @@ test('bus: an injected frame is handed to the bridge as a line', async () => {
   bus.stop();
   await fake.close?.();
 });
+
+test('project import: an ECU from the project gets a DBC rebuilt from its signals', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'simproj-'));
+  process.env.SIM_SCENES_DIR = dir;
+  const proj = JSON.parse(fs.readFileSync(new URL('./fixtures/upstream-0.3.0.json', import.meta.url), 'utf8'));
+  proj.DbcDevices = [{ name: 'CANTCU', dbcSignal: [{ name: 'TCU_Gear', id: 1522, extended: false, message: 'CANTCU_3', startBit: 16, length: 8, byteOrder: 0, isSigned: true, factor: 1, offset: 0, unit: '', min: -3, max: 8 }] }];
+  const file = path.join(dir, 'proj.json');
+  fs.writeFileSync(file, JSON.stringify(proj));
+  const { importProject } = await import('../server/project.js');
+  const { scene } = await importProject(file, { name: 'p' });
+  const gen = scene.nodes.find((n) => n.type === 'cangen');
+  assert.match(gen.data.dbc, /CANTCU\.dbc$/);
+  const { parseDbc, encode } = await import('../lib/dbc.js');
+  const { ROOT } = await import('../server/state.js');
+  const db = parseDbc(fs.readFileSync(path.resolve(ROOT, gen.data.dbc), 'utf8'));
+  assert.deepEqual(Array.from(encode(db, 1522, { TCU_Gear: -1 }).data), [0, 0, 0xff, 0, 0, 0, 0, 0]);
+});

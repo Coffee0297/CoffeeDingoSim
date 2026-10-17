@@ -4,7 +4,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { ROOT } from './state.js';
+import { ROOT, sceneDir } from './state.js';
+import { dbcFromSignals } from '../lib/dbc.js';
 import { getProjectLibs, getComponents } from './compat.js';
 
 /** Read + hash a project file. */
@@ -67,6 +68,19 @@ export async function importProject(projectPath, baseScene = {}) {
       const r = libs.populate(modules, comps.lib, { extras });
       nodes = r.nodes || []; edges = r.edges || []; notes = r.notes || [];
     } catch (e) { notes.push(`populate failed: ${e.message}`); }
+  }
+  // ECUs: the project keeps their signals, not the DBC file. Write one per ECU into the scene so its CAN
+  // generator has frames to offer (Load DBC… on the node replaces it with the real file).
+  const sceneName = baseScene.name || path.basename(path.dirname(abs));
+  for (const n of nodes.filter((x) => x.type === 'cangen' && !x.data?.dbc)) {
+    const dev = (extras.dbcDevices ?? []).find((d) => (d.name ?? '') === n.data?.name);
+    if (!dev?.dbcSignal?.length) continue;
+    const dir = path.join(sceneDir(sceneName), 'dbc');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, String(dev.name).replace(/[^\w.\- ()]+/g, '_') + '.dbc');
+    fs.writeFileSync(file, dbcFromSignals(dev.dbcSignal));
+    n.data = { ...n.data, dbc: path.relative(ROOT, file).split(path.sep).join('/') };
+    notes.push(`${dev.name}: frames from the project's ECU signals. Wire its power to the output that feeds the ECU, or it keeps the car awake.`);
   }
   for (const s of extras.skipped || []) notes.push(`${s.name} not simulated: ${s.reason}.`);
   if (!nodes.some((n) => n.type === 'battery')) nodes.push({ id: 'battery', type: 'battery', pos: { x: -400, y: 0 }, data: { vocV: 12.6, riOhm: 0.015, altV: 14.2 } });
