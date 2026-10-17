@@ -155,6 +155,14 @@ namespace Antmicro.Renode.Tools.Network
                 lock(queue)
                 {
                     queue.Enqueue(frame);
+                    // The wire does not wait for a receiver: one that cannot keep up (paused, or a firmware not
+                    // reading) loses frames, as at its FIFO on hardware. Unbounded, a stalled module was fed
+                    // hundreds of thousands of stale frames once it read again, its config replies minutes late.
+                    while(queue.Count > MaxQueued)
+                    {
+                        queue.Dequeue();
+                        dropped++;
+                    }
                     peak = Math.Max(peak, queue.Count);
                     arm = !armed;
                     armed = true;
@@ -241,7 +249,7 @@ namespace Antmicro.Renode.Tools.Network
             {
                 lock(queue)
                 {
-                    return $"{name} sent {sent} delivered {delivered} queued {queue.Count} peak {peak} fifo-full {(probeOk ? overrunAtDelivery.ToString() : "n/a")} holds {holds} watched sent {sentWatched} delivered {deliveredWatched}";
+                    return $"{name} sent {sent} delivered {delivered} queued {queue.Count} peak {peak} dropped {dropped} fifo-full {(probeOk ? overrunAtDelivery.ToString() : "n/a")} holds {holds} watched sent {sentWatched} delivered {deliveredWatched}";
                 }
             }
 
@@ -256,6 +264,8 @@ namespace Antmicro.Renode.Tools.Network
             private ulong holds;
             private const int MaxHoldTicks = 40;   // ~10 ms at 500 kbit/s
             private int peak;
+            private ulong dropped;
+            private const int MaxQueued = 256;   // ~60 ms of a full 500 kbit/s bus
         }
     }
 }

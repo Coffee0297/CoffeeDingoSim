@@ -147,6 +147,20 @@ namespace Antmicro.Renode.Peripherals.CAN
         private void ResetUnlocked()
         {
             registers.Reset(!IsSlave);
+            // registers.Reset() writes 0 to RFxR, which neither empties a FIFO nor clears FULL/FOVR (write-1-to-clear),
+            // and it re-evaluated the interrupt lines while IER was still set. A module restarted by the Sim (or after
+            // a firmware update) came back with a full FIFO and its RX line already high: the NVIC never saw an edge,
+            // the firmware read CAN only on its 10 ms receive timeout and PacedCANHub queued the rest (minutes behind).
+            for(int i = 0; i < NumberOfRxFifos; i++)
+            {
+                RxFifo[i].Clear();
+                registers.CAN_RFR[i].FifoFull = false;
+                registers.CAN_RFR[i].FifoOverrun = false;
+            }
+            foreach(var line in Connections.Values)
+            {
+                line.Unset();
+            }
 
             if(!IsSlave)
             {
