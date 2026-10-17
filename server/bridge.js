@@ -45,7 +45,8 @@ export function createBridge(opts = {}) {
     switch (c) {
       case 'I': {
         const base = getBaseId();
-        const hex = ((base ?? 0) & 0x7ff).toString(16).toUpperCase().padStart(3, '0');
+        if (base == null) { reply(client, '\x07'); return; }   // a plain CAN adapter: no module behind it on USB
+        const hex = (base & 0x7ff).toString(16).toUpperCase().padStart(3, '0');
         reply(client, `I${hex}\r`);
         return;
       }

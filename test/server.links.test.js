@@ -190,3 +190,14 @@ test('bridge: a filter left by a client that went away does not narrow the next 
   b.destroy();
   await bridge.stop();
 });
+
+test('bridge: with no module named on USB, I gets the plain adapter error (no link module)', async () => {
+  const bridge = createBridge({ mode: 'tcp:0', getBaseId: () => null });
+  await bridge.start();
+  const c = await client(bridge.port);
+  await until(() => bridge.describe().clients === 1);
+  c.write('I\r');
+  await until(() => c.data.includes('\x07'));
+  assert.ok(!/I[0-9A-F]{3}\r/.test(c.data));
+  c.destroy?.(); await bridge.stop();
+});

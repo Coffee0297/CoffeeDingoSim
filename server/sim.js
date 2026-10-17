@@ -35,9 +35,11 @@ export async function createSim(opts = {}) {
   const bank = createBank({ port: bankPort });
   const bus = await createBus({ port: busPort, getTime: () => state.renode.vtime, sleepAfterMs: opts.sleepAfterMs });
   const bridgeMode = opts.bridge || process.env.SIM_BRIDGE || state.scene?.globals?.bridge || 'tcp:7778';
+  // The dingoConfig link is a plain CAN adapter on the Sim's bus: no module is "on USB" (the app would treat it as
+  // its link module and update it over USB, not CAN). A scene can name one to test that path: globals.usbModule.
   const firstPdmBase = () => {
-    const mods = state.scene?.modules || [];
-    return (mods.find((m) => m.kind === 'pdm' || m.kind === 'pdmmax') || mods[0])?.baseId ?? null;
+    const id = state.scene?.globals?.usbModule;
+    return id ? (state.scene?.modules || []).find((m) => m.id === id)?.baseId ?? null : null;
   };
   // Several dingoConfig transports can run at once, comma-separated: e.g. `tcp:7778,serial:COM5` serves the
   // fork over TCP and the original dingoConfig over a virtual COM pair on the same simulated bus.
