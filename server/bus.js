@@ -118,6 +118,9 @@ export async function createBus(opts = {}) {
       if (frame.id < base || frame.id >= base + idSpan(e.module.kind)) continue;
       if (e.tel.asleep || e.tel.silent) { e.tel.asleep = false; e.tel.silent = false; e.tel.silentWhy = undefined; e.dirty = true; }
       armSleep(e);
+      // a goodbye on its config id ([Sleep, 'Z', 'Z', 'Z', why]) is a module going to sleep on purpose: asleep, not
+      // silent (the silent check would inspect its CPU while it resets out of STOP, and Renode crashed on that)
+      if (frame.id === base && frame.data?.[0] === 0x20 && frame.data[1] === 0x5a && frame.data[2] === 0x5a && frame.data[3] === 0x5a) e.tel.asleep = true;
       if (frame.id < base + 2) { markDirty(e); return e.module; } // config traffic: alive, nothing to decode
       const r = e.decode(frame, base);
       if (r) {

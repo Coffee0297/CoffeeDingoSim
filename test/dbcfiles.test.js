@@ -53,3 +53,15 @@ test('project import: an ECU from the project gets a DBC rebuilt from its signal
   const db = parseDbc(fs.readFileSync(path.resolve(ROOT, gen.data.dbc), 'utf8'));
   assert.deepEqual(Array.from(encode(db, 1522, { TCU_Gear: -1 }).data), [0, 0, 0xff, 0, 0, 0, 0, 0]);
 });
+
+test('bus: a module that says goodbye is asleep, not silent (no CPU diagnosis while it resets out of STOP)', async () => {
+  const { createBus } = await import('../server/bus.js');
+  const bus = await createBus({ flushIntervalMs: 0, sleepAfterMs: 0 });
+  bus.setModules([{ id: 'CB-1', kind: 'canboard', baseId: 0x660 }]);
+  bus.feedLine('t66088000000000000000');   // ordinary config reply
+  assert.equal(bus.telemetryOf('CB-1').asleep, false);
+  bus.feedLine('t6608205A5A5A02000000');   // goodbye: [Sleep, 'Z', 'Z', 'Z', why]
+  assert.equal(bus.telemetryOf('CB-1').asleep, true);
+  bus.feedLine('t6628FB01F501F101E401');   // talking again: awake
+  assert.equal(bus.telemetryOf('CB-1').asleep, false);
+});
