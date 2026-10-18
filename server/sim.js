@@ -188,7 +188,7 @@ export async function createSim(opts = {}) {
     if (now - busWindow >= 1000) { busWindow = now; busCount = 0; }
     if (busCount >= BUS_MSGS_PER_S) { busDropped++; return; }
     busCount++;
-    broadcast({ type: 'bus', frame: { id: f.id, ext: f.ext, dlc: f.dlc, data: f.data, dir: f.dir, module: f.module ?? undefined, source: f.source }, dropped: busDropped });
+    broadcast({ type: 'bus', frame: { id: f.id, ext: f.ext, dlc: f.dlc, data: f.data, dir: f.dir, module: f.module ?? undefined, source: f.source }, dropped: busDropped, t: state.renode.vtime });   // t: vehicle time, s
     busDropped = 0;
   });
 

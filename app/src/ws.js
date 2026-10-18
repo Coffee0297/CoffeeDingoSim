@@ -144,8 +144,8 @@ export function handle(msg) {
       bumpTick();
       break;
     }
-    case 'bus':
-      if (msg.frame) bus.update((list) => { const next = list.length >= 200 ? list.slice(list.length - 199) : list.slice(); next.push({ ...msg.frame, seq: ++busSeq, at: msg.t ?? null }); return next; });
+    case 'bus':   // skipped: frames left out before this one (the server forwards at most 20 a second)
+      if (msg.frame) bus.update((list) => { const next = list.length >= 200 ? list.slice(list.length - 199) : list.slice(); next.push({ ...msg.frame, seq: ++busSeq, at: msg.t ?? null, skipped: msg.dropped || 0 }); return next; });
       break;
     case 'renode':
       renode.update((r) => ({
