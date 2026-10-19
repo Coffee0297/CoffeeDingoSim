@@ -70,19 +70,12 @@ elif request.IsRead:
 
 pwr: Miscellaneous.STM32_PWR @ sysbus 0x40007000
 
-// Plain register files (read back what was written): SYSCFG and the ADC1/2 common block (CCR at +0x08)
-syscfg: Python.PythonPeripheral @ sysbus 0x40010000
-    size: 0x400
-    initable: true
-    script: '''
-if request.IsInit:
-    regs = {}
-elif request.IsWrite:
-    regs[request.Offset] = request.Value
-elif request.IsRead:
-    request.Value = regs.get(request.Offset, 0)
-'''
+// EXTICR picks one port per EXTI line, as on the chip. Wiring the ports straight to exti@n made Renode OR PAn and
+// PBn through an auto-inserted combiner, so a DI edge was lost whenever the other port's pin n was high.
+syscfg: Miscellaneous.STM32_SYSCFG @ sysbus 0x40010000
+    [0-15] -> exti@[0-15]
 
+// Plain register file (read back what was written): the ADC1/2 common block (CCR at +0x08)
 adc12_common: Python.PythonPeripheral @ sysbus 0x50000300
     size: 0x100
     initable: true
@@ -119,14 +112,14 @@ gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x48000000, +0x400>
     outputSpeedResetValue: 0x0C000000
     pullUpPullDownResetValue: 0x64000000
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#0@[0-15]
 
 gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x48000400, +0x400>
     modeResetValue: 0x00000280
     outputSpeedResetValue: 0x000000C0
     pullUpPullDownResetValue: 0x00000100
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#1@[0-15]
 
 // ChibiOS initialises every port in its board table, PC and PD included (STM32F303K8 bonds out only PC14/15)
 gpioPortC: GPIOPort.STM32_GPIOPort @ sysbus <0x48000800, +0x400>
@@ -205,7 +198,7 @@ loadBank: Miscellaneous.ProfetLoadBank @ sysbus 0x5FFE0000
     adc2: adc2
     port: 7800
 
-// DO1..DO4 watched (PA15, PB3, PB4, PB5). A pin connection replaces that pin's `-> exti@n` entry.
+// DO1..DO4 watched (PA15, PB3, PB4, PB5). A pin connection replaces that pin's `-> syscfg#n@pin` entry.
 gpioPortA:
     15 -> loadBank@0     // DO1 PA15
 gpioPortB:

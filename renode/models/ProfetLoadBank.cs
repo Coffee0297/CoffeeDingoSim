@@ -967,9 +967,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // ChibiOsFix halts the core in STOP mode (Renode has no stop-mode clock gating); a wake source lets it run
-        // on out of the WFI, into the firmware's NVIC_SystemReset. Renode's GPIO pins don't reach EXTI and the
-        // firmware leaves only the EXTI IRQs enabled for its WFI, so pend EXTI15_10 (IRQ 40 on the F303 and F4)
-        // as a real wake edge would, then un-halt: the core ends the WFI on its own thread. Done from the bank
+        // on out of the WFI, into the firmware's NVIC_SystemReset. The edge itself reaches EXTI (gpioPort -> syscfg ->
+        // exti), but the firmware leaves only the EXTI IRQs enabled for its WFI, so pend EXTI15_10 (IRQ 40 on the F303
+        // and F4) as well, whichever line was armed, then un-halt: the core ends the WFI on its own thread. Done from the bank
         // tick (TryWriteBus can find the bus busy: retried next tick).
         private void ReleaseStop()
         {

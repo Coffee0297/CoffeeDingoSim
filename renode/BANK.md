@@ -82,9 +82,10 @@ loadBank:
     8 -> gpioPortB@8
 ```
 
-A `gpioPortX: n -> loadBank@k` entry replaces that pin's `-> exti@n` connection. That is fine here because
+A `gpioPortX: n -> loadBank@k` entry replaces that pin's `-> syscfg#port@n` connection. That is fine here because
 none of the IN or DSEL pins is a wake source. The bank → port entries drive the port's *input* side, which still
-reaches EXTI.
+reaches EXTI through `syscfg` (STM32_SYSCFG: EXTICR picks one port per line, as on the chip; wiring every port
+straight to `exti@n` made Renode OR all ports' pin n, so a DI edge was lost while any other pin n was high).
 
 ### dingopdmmax_v1.repl
 

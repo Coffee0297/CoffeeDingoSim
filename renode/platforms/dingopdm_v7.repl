@@ -65,6 +65,11 @@ iwdg: Timers.STM32_IndependentWatchdog @ sysbus 0x40003000
     windowOption: false
     defaultPrescaler: 0x4
 
+// EXTICR picks one port per EXTI line, as on the chip. Wiring every port straight to exti@n made Renode OR all
+// eight pin-n lines through an auto-inserted combiner, so a DI edge was lost whenever any other port's pin n was high.
+syscfg: Miscellaneous.STM32_SYSCFG @ sysbus 0x40013800
+    [0-15] -> exti@[0-15]
+
 exti: IRQControllers.STM32F4_EXTI @ sysbus 0x40013C00
     numberOfOutputLines: 24
     [0-4] -> nvic@[6-10]
@@ -86,38 +91,38 @@ gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x40020000, +0x400>
     outputSpeedResetValue: 0x0C000000
     pullUpPullDownResetValue: 0x64000000
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#0@[0-15]
 
 gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x40020400, +0x400>
     modeResetValue: 0x00000280
     outputSpeedResetValue: 0x000000C0
     pullUpPullDownResetValue: 0x00000100
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#1@[0-15]
 
 gpioPortC: GPIOPort.STM32_GPIOPort @ sysbus <0x40020800, +0x400>
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#2@[0-15]
 
 gpioPortD: GPIOPort.STM32_GPIOPort @ sysbus <0x40020C00, +0x400>
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#3@[0-15]
 
 gpioPortE: GPIOPort.STM32_GPIOPort @ sysbus <0x40021000, +0x400>
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#4@[0-15]
 
 gpioPortF: GPIOPort.STM32_GPIOPort @ sysbus <0x40021400, +0x400>
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#5@[0-15]
 
 gpioPortG: GPIOPort.STM32_GPIOPort @ sysbus <0x40021800, +0x400>
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#6@[0-15]
 
 gpioPortH: GPIOPort.STM32_GPIOPort @ sysbus <0x40021c00, +0x400>
     numberOfAFs: 16
-    [0-15] -> exti@[0-15]
+    [0-15] -> syscfg#7@[0-15]
 
 // Status (PC1) and error (PC0) LEDs: `sysbus.gpioPortC.statusLed State`
 statusLed: Miscellaneous.LED @ gpioPortC
@@ -275,7 +280,7 @@ loadBank: Miscellaneous.ProfetLoadBank @ sysbus 0x5FFE0000
     port: 7800
 
 // Profet IN lines -> bank inputs 0..7 (out1..out8), DSEL lines -> 8..10.
-// A pin connection replaces that pin's `-> exti@n` entry; none of these pins is a wake source.
+// A pin connection replaces that pin's `-> syscfg#n@pin` entry; none of these pins is a wake source.
 gpioPortB:
     10 -> loadBank@0     // out1 PB10
     12 -> loadBank@3     // out4 PB12
