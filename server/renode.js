@@ -176,6 +176,22 @@ export function replWithBankPort(text, bankPort) {
   return text.replace(/(loadBank:\s*Miscellaneous\.ProfetLoadBank[^\n]*\n(?:[ \t]+[^\n]*\n)*?[ \t]+port:\s*)\d+/, `$1${bankPort}`);
 }
 
+/** Lowest flash load address of an ELF32 (the vector table): 0x08004000 for an app behind OpenBLT, 0x08000000 for
+ *  a plain build (e.g. upstream dingoFW). Falls back to the OpenBLT layout when the file can't be read. */
+export function elfFlashBase(file) {
+  try {
+    const b = fs.readFileSync(file);
+    const phoff = b.readUInt32LE(28), phsize = b.readUInt16LE(42), phnum = b.readUInt16LE(44);
+    let lo = Infinity;
+    for (let i = 0; i < phnum; i++) {
+      const o = phoff + i * phsize, paddr = b.readUInt32LE(o + 12), filesz = b.readUInt32LE(o + 16);
+      if (b.readUInt32LE(o) === 1 && filesz > 0 && paddr >= 0x08000000 && paddr < 0x08100000) lo = Math.min(lo, paddr);
+    }
+    if (lo !== Infinity) return '0x' + lo.toString(16).toUpperCase().padStart(8, '0');
+  } catch { /* fall through */ }
+  return '0x08004000';
+}
+
 /**
  * Render the scene's .resc from renode/templates (car.resc.hbs + `<board>.resc.hbs`) and write it to
  * `<outDir>/<scene>.resc`, plus one `<board>.repl` copy per board with the bank port filled in.
@@ -227,6 +243,7 @@ export function generateResc(scene, firmwarePaths, opt = {}) {
       elf: fwd(path.resolve(m.elf && fs.existsSync(m.elf) ? m.elf : firmwarePaths[m.kind])),
       nv: fwd(path.join(nvDir, `${m.id}.bin`)),
       hub: o.hub, bankPort: o.bankPort, bridgePort: o.bridgePort,
+      vtor: elfFlashBase(path.resolve(m.elf && fs.existsSync(m.elf) ? m.elf : firmwarePaths[m.kind])),
       calWords: calWordLines(m.kind),
       macro: resetMacroName(m.id),
       canConnect: off
