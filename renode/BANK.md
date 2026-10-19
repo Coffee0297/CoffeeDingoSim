@@ -11,7 +11,9 @@ Renode process. Smoke test: run `node renode/test/bank_probe.mjs` from the repo 
    timer is running (`CR1.CEN && CCR1 > 0`). Duty is `CCR1 / (ARR + 1)` (ChibiOS sets ARR = period − 1).
    Timers: PDM out1–8 use TIM3, 4, 5, 9, 10, 11, 12, 13; PDM-Max out1–4 use TIM3, 4, 5, 9; CANBoard
    DO1–4 use TIM3, 15, 16, 17. All are channel 1 (see `port_pwm.h`). `pwmDisableChannel` writes CCR1 = 0,
-   which reads as off.
+   which reads as off. A running timer with CCR1 = 0 and the CC1 interrupt enabled also forces the IN pin off:
+   on a real STM32 the compare fires at CNT = 0 and the firmware's channel callback clears the pin every period,
+   but Renode's `STM32_Timer` never fires a compare at CCR 0, so a pin left high would read as 100 %.
 2. Computes each load's current:
    - Each load has its own on-clock. After `coolDownMs` off it restarts cold, otherwise it resumes.
    - The base is the `table` at `tableMs` with linear interpolation. It loops when `loopMs` > 0 and uses
