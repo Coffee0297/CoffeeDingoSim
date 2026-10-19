@@ -89,6 +89,8 @@ export function createBank(opts = {}) {
       if (sock) { try { sock.destroy(); } catch { /* ignore */ } sock = null; }
       connected = false;
     },
+    /** Reconnect now instead of after the backoff (a Renode just started). */
+    retryNow() { if (stopped || sock) return; clearTimeout(timer); timer = null; backoff = minBackoff; connect(); },
     /** Raw send; returns false when not connected. */
     send: write,
     /** Full scene replace for one machine; remembered and resent on reconnect. */

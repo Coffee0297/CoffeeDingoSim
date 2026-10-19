@@ -210,6 +210,21 @@ export async function createSim(opts = {}) {
     renode.setQuantum?.(sceneQuantumUs(state.scene)).catch((e) => S.renodeLog(`[sim] quantum change failed: ${e.message}`));
   }
 
+  /**
+   * renode.start, but the emulation only runs once the load bank link is up and has the loads. The link
+   * reconnects with a backoff of up to 5 s after a restart: loads that arrived after the firmware had switched
+   * its outputs on started cold, past the firmware's inrush window, and tripped every bulb/motor output to Fault.
+   */
+  async function startWithLoads(sc, firmwarePaths, o) {
+    const r = await renode.start(sc, firmwarePaths, { ...o, paused: true });
+    bank.retryNow?.();
+    const t0 = Date.now();
+    while (!bank.connected && Date.now() - t0 < 10000) await new Promise((res) => setTimeout(res, 50));
+    if (!bank.connected) S.renodeLog('[sim] load bank link still down 10 s after start: the loads will start late');
+    if (!o.paused) await renode.resume();
+    return r;
+  }
+
   // ------------------------------------------------------------ operations ---------------
   let bridgeRetry = [];
   const api = {
@@ -337,7 +352,7 @@ export async function createSim(opts = {}) {
         for (const id of modulesToIsolate(candidates, nvDir)) {
           S.renodeLog(`[bringup] ${id}: first start, configuring it alone on the bus`);
           state.renode.vtime = 0;
-          const r1 = await renode.start(state.scene, firmwarePaths, { paused: !!paused, isolate: [], only: [id], nvDir });
+          const r1 = await startWithLoads(state.scene, firmwarePaths, { paused: !!paused, isolate: [], only: [id], nvDir });
           let pumping1 = !!paused;
           const pump1 = pumping1 ? (async () => { while (pumping1) await renode.runFor(0.2); })().catch(() => {}) : null;
           try { await api.bringUpStarted(r1, { isolate: [id], nvDir }); }
@@ -348,7 +363,7 @@ export async function createSim(opts = {}) {
         const isolate = bringup ? modulesToIsolate(candidates, nvDir) : [];
         state.renode.vtime = 0; // a new Renode process starts at virtual time 0
         for (const k of Object.keys(state.modules)) delete state.modules[k];   // no stale outputs / asleep from the last run
-        const r = await renode.start(state.scene, firmwarePaths, { paused: !!paused, isolate, only, nvDir });
+        const r = await startWithLoads(state.scene, firmwarePaths, { paused: !!paused, isolate, only, nvDir });
         if (!bringup) return r;
         let pumping = !!paused, stalled = false;
         const pump = pumping ? (async () => { while (pumping) await renode.runFor(0.2); })().catch(() => {}) : null;
