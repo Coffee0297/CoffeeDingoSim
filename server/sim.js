@@ -128,7 +128,7 @@ export async function createSim(opts = {}) {
   });
   bank.on('event', (ev) => {
     recorder.event(ev);
-    if (ev.what === 'sleep') S.setTelemetry(ev.machine, { asleep: true });
+    if (ev.what === 'sleep') { S.setTelemetry(ev.machine, { asleep: true }); bus.asleep(ev.machine); }
     toast('info', `${ev.machine}: ${ev.what}`);
   });
 
