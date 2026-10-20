@@ -24,7 +24,7 @@ machine LoadPlatformDescriptionFromString "slcanBridge: CAN.SlcanTcpBridge @ sys
 
 sysbus LoadELF $elf
 sysbus.chibiosFix Install
-cpu VectorTableOffset 0x08004000
+cpu VectorTableOffset 0x08002000
 
 # config sector image: loaded if the file exists, else the sector reads erased (0xFF) -> firmware writes defaults
 sysbus.flash_controller Filename $nv
@@ -43,7 +43,7 @@ macro reset
 """
     sysbus LoadELF $elf
     sysbus.chibiosFix Install
-    cpu VectorTableOffset 0x08004000
+    cpu VectorTableOffset 0x08002000
     sysbus.flash_controller Load
     sysbus WriteWord 0x1FFFF7B8 943
     sysbus WriteWord 0x1FFFF7BA 1500

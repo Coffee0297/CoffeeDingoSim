@@ -21,7 +21,7 @@ nvic: IRQControllers.NVIC @ sysbus 0xE000E000
     IRQ -> cpu@0
 
 // ---------------- memory ----------------
-// 64 KB flash: OpenBLT sectors 0-7 (not loaded), app 0x08004000.., config sector 31 at 0x0800F800 (2 KB)
+// 64 KB flash: OpenBLT sectors 0-3 (not loaded), app 0x08002000.. (VTOR from the ELF), config sector 31 at 0x0800F800 (2 KB)
 flash: Memory.MappedMemory @ sysbus 0x08000000
     size: 0x10000
 
