@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
-import { generateResc, flagsFromHelp, cleanMonitor, createMonitor, findRenodeExe, replWithBankPort, monitorErrors, resetMacroName, runForArg, parseVtime, MONITOR_PROMPT } from '../server/renode.js';
+import { generateResc, flagsFromHelp, cleanMonitor, createMonitor, findRenodeExe, replWithBankPort, monitorErrors, resetMacroName, runForArg, parseVtime, MONITOR_PROMPT, elfFlashStart } from '../server/renode.js';
 import { pickAsset, resolveLocal } from '../server/firmware.js';
 
 const scene = {
@@ -165,4 +165,17 @@ test('firmware: asset pick + local resolution', () => {
   assert.throws(() => resolveLocal(dir, 'canboard'));
   assert.equal(findRenodeExe(dir), null);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('elfFlashStart: vector table at the lowest flash LOAD segment (5.7 CANBoard app at 0x08002000)', () => {
+  const elf = (loads) => {   // minimal ELF32 LE: header + PT_LOAD program headers {vaddr, filesz}
+    const b = Buffer.alloc(52 + 32 * loads.length);
+    b.writeUInt32BE(0x7f454c46, 0); b[4] = 1; b[5] = 1;
+    b.writeUInt32LE(52, 0x1c); b.writeUInt16LE(32, 0x2a); b.writeUInt16LE(loads.length, 0x2c);
+    loads.forEach(([vaddr, filesz], i) => { const o = 52 + 32 * i; b.writeUInt32LE(1, o); b.writeUInt32LE(vaddr, o + 8); b.writeUInt32LE(filesz, o + 16); });
+    const f = path.join(os.tmpdir(), `elf-${process.pid}-${loads.length}-${loads[0][0]}.elf`); fs.writeFileSync(f, b); return f;
+  };
+  assert.equal(elfFlashStart(elf([[0x20000400, 0x1c], [0x08002000, 0xd218]])), 0x08002000);   // RAM segment ignored
+  assert.equal(elfFlashStart(elf([[0x08004000, 0xb564], [0x10000000, 0]])), 0x08004000);
+  assert.equal(elfFlashStart(path.join(os.tmpdir(), 'no-such.elf')), 0x08004000);             // unreadable: old default
 });

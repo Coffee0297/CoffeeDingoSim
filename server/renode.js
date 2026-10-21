@@ -146,6 +146,22 @@ export const CAL_WORDS = {
 const tpl = (s, vars) => s.replace(/\$\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
 const fwd = (p) => String(p).split('\\').join('/');
 
+/** Vector table = start of the ELF's lowest flash LOAD segment (CANBoard app at 0x08004000 before 5.7's 8 KB OpenBLT, 0x08002000 after). */
+export function elfFlashStart(file, fallback = 0x08004000) {
+  try {
+    const b = fs.readFileSync(file);
+    if (b.readUInt32BE(0) !== 0x7f454c46 || b[4] !== 1 || b[5] !== 1) return fallback; // ELF32 little-endian only
+    const phoff = b.readUInt32LE(0x1c), phentsize = b.readUInt16LE(0x2a), phnum = b.readUInt16LE(0x2c);
+    let lo = Infinity;
+    for (let i = 0; i < phnum; i++) {
+      const p = phoff + i * phentsize;
+      const vaddr = b.readUInt32LE(p + 8), filesz = b.readUInt32LE(p + 16);
+      if (b.readUInt32LE(p) === 1 && filesz > 0 && vaddr >= 0x08000000 && vaddr < 0x08100000) lo = Math.min(lo, vaddr);
+    }
+    return Number.isFinite(lo) ? lo : fallback;
+  } catch { return fallback; }
+}
+
 /** Monitor macro name of a module's reset macro (`reset_PDM_01`). */
 export const resetMacroName = (id) => `reset_${String(id).replace(/[^A-Za-z0-9]/g, '_')}`;
 /** Private CAN hub of a module created isolated (`iso_PDM_01`). */
@@ -218,13 +234,15 @@ export function generateResc(scene, firmwarePaths, opt = {}) {
     const off = isolate.has(m.id);
     if (off) isolated.push(m.id);
     used.push(m.id);
+    const elf = path.resolve(m.elf && fs.existsSync(m.elf) ? m.elf : firmwarePaths[m.kind]);
     machines.push(tpl(mt, {
       name: m.id, kind: m.kind, board, baseId: m.baseId,
+      vtor: `0x${elfFlashStart(elf).toString(16).toUpperCase().padStart(8, '0')}`,
       repl: fwd(repls.get(board)),
       models: fwd(path.join(ROOT, 'renode', 'models')),
       modelsAnchor: fwd(srcRepl),
       // a firmware update over CAN (server/vblt.js) leaves the module on that ELF: m.elf, when it still exists
-      elf: fwd(path.resolve(m.elf && fs.existsSync(m.elf) ? m.elf : firmwarePaths[m.kind])),
+      elf: fwd(elf),
       nv: fwd(path.join(nvDir, `${m.id}.bin`)),
       hub: o.hub, bankPort: o.bankPort, bridgePort: o.bridgePort,
       calWords: calWordLines(m.kind),

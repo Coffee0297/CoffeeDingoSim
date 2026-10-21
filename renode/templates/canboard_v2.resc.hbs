@@ -10,7 +10,7 @@ machine LoadPlatformDescription @${repl}
 sysbus LoadELF @${elf}
 # ChibiOS preemption workaround (Renode ICSR.RETTOBASE bug, see ChibiOsFix.cs): after LoadELF, before start
 sysbus.chibiosFix Install
-cpu VectorTableOffset 0x08004000
+cpu VectorTableOffset ${vtor}
 # the DMA model logs every unhandled control bit the ChibiOS driver writes: keep the log readable
 logLevel 3 sysbus.dma1
 # DO1..DO4 PWM timebases: the stock timer tags the preload (OCxPE) and MOE bits ChibiOS's PWM driver sets as
@@ -35,7 +35,7 @@ macro reset
 """
 sysbus LoadELF @${elf}
 sysbus.chibiosFix Install
-cpu VectorTableOffset 0x08004000
+cpu VectorTableOffset ${vtor}
 sysbus.flash_controller Load
 ${calWords}
 """

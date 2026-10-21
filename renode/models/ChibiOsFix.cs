@@ -111,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 var hw0 = bus.ReadWord(baseAddr + off);
                 var hw1 = bus.ReadWord(baseAddr + off + 2);
-                if((hw0 & 0xFFF0) == 0xF410 && (hw1 & 0x70FF) == 0x6000)   // ANDS.W Rx, Rx, #0x800
+                if((hw0 & 0xFFE0) == 0xF400 && (hw1 & 0x70FF) == 0x6000)   // AND.W / ANDS.W Rx, Rx, #0x800 (-O0 builds use AND.W + CMP)
                 {
                     hasTest = true;
                     break;
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return Report("ChibiOsFix: RETTOBASE test not found in __port_irq_epilogue; not patched");
             }
             var start = (baseAddr + 3) & ~3UL;
-            for(ulong a = start; a < baseAddr + 0x80; a += 4)
+            for(ulong a = start; a < baseAddr + 0x100; a += 4)   // -O0: the literal pool sits at +0x84
             {
                 if(bus.ReadDoubleWord(a) == 0xE000ED00)
                 {
