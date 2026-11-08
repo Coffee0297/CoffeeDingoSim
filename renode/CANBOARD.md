@@ -1,6 +1,6 @@
 # CANBoard v2 on Renode
 
-The real CANBoard firmware (`canboard_v2.elf`, STM32F303K8, app at `0x08004000`) boots in Renode
+The real CANBoard firmware (`canboard_v2.elf`, STM32F303K8, app at `0x08002000` behind the 8 KB OpenBLT bootloader; older images at `0x08004000`; VTOR comes from the ELF) boots in Renode
 1.16.1+20260623git3f5a91013. `renode/test/cb_probe.mjs` checks it end to end and passes on every item:
 
 | Check | Evidence (cb_probe.mjs run, 2026-10-06) |
@@ -113,7 +113,7 @@ MON_PORT=1244 node renode/test/mon.mjs 'mach set "CB-01"' 'sysbus.loadBank SetAn
   `nBaseId - 1`, while the config RX is `nBaseId + 1` (`core/config_handler.cpp`). This is inactive with the
   default `bCanFilterEnabled = false` and was not exercised in Renode.
 - Not verified: DO PWM against the timer model (the bank reads CCR1 / ARR), sleep and wake (`CAN_SLEEP FALSE`
-  on this board anyway), the OpenBLT bootloader in sectors 0–7 (not loaded), CAN bit-rate changes, and
+  on this board anyway), the OpenBLT bootloader in sectors 0–3 (not loaded), CAN bit-rate changes, and
   `CAN_ID_1/2` pins (left floating).
 - `logLevel 3 sysbus.dma1` in the template hides the DMA model's unhandled-bit warnings (TEIE/PL/CTEIF
   tags). They are harmless.

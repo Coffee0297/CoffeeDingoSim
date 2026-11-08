@@ -180,6 +180,8 @@ export async function createBus(opts = {}) {
     get frames() { return frames; },
     port,
     setModules,
+    /** The bank saw the module enter deep sleep: asleep in the module's own telemetry, so its next flush keeps it. */
+    asleep(moduleId) { const e = byModule.get(moduleId); if (e && !e.tel.asleep) { e.tel.asleep = true; markDirty(e); } },
     start() { stopped = false; if (!sock) connect(); return this; },
     stop() {
       stopped = true;

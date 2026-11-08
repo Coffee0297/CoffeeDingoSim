@@ -671,6 +671,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             for(var o = 0; o < n; o++)
             {
                 var pwmRun = false;
+                var zeroDuty = false;
                 var d = 0.0;
                 if(timerPresent[o])
                 {
@@ -681,9 +682,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         pwmRun = true;
                         d = Math.Min(1.0, t.Ccr / (double)(t.Arr + 1));
                     }
+                    // 0 % duty: real STM32 timers raise CC1IF at CNT == CCR1 == 0 every period, so the firmware's
+                    // channel callback clears the IN line; Renode's STM32_Timer never fires a compare at CCR 0
+                    zeroDuty = (t.Cr1 & 1) != 0 && (t.Dier & 2) != 0 && t.Ccr == 0;
                 }
-                on[o] = inPin[o] || pwmRun;
-                duty[o] = pwmRun ? d : (inPin[o] ? 1.0 : 0.0);
+                var pin = inPin[o] && !zeroDuty;
+                on[o] = pin || pwmRun;
+                duty[o] = pwmRun ? d : (pin ? 1.0 : 0.0);
                 pwmActive[o] = pwmRun && d < 1.0;
             }
         }
@@ -967,9 +972,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // ChibiOsFix halts the core in STOP mode (Renode has no stop-mode clock gating); a wake source lets it run
-        // on out of the WFI, into the firmware's NVIC_SystemReset. Renode's GPIO pins don't reach EXTI and the
-        // firmware leaves only the EXTI IRQs enabled for its WFI, so pend EXTI15_10 (IRQ 40 on the F303 and F4)
-        // as a real wake edge would, then un-halt: the core ends the WFI on its own thread. Done from the bank
+        // on out of the WFI, into the firmware's NVIC_SystemReset. The edge itself reaches EXTI (gpioPort -> syscfg ->
+        // exti), but the firmware leaves only the EXTI IRQs enabled for its WFI, so pend EXTI15_10 (IRQ 40 on the F303
+        // and F4) as well, whichever line was armed, then un-halt: the core ends the WFI on its own thread. Done from the bank
         // tick (TryWriteBus can find the bus busy: retried next tick).
         private void ReleaseStop()
         {
@@ -1195,11 +1200,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var r = timerRegs[o];
             TryReadBus(timers[o], ref r.Cr1);
             TryReadBus(timers[o] + 0x2C, ref r.Arr);
+            TryReadBus(timers[o] + 0x0C, ref r.Dier);
             TryReadBus(timers[o] + 0x34, ref r.Ccr);
             timerRegs[o] = r;
         }
 
-        private struct TimerRegs { public uint Cr1, Arr, Ccr; }
+        private struct TimerRegs { public uint Cr1, Dier, Arr, Ccr; }
 
         private bool SafePeripheralAt(ulong addr)
         {

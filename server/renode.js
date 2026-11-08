@@ -192,6 +192,22 @@ export function replWithBankPort(text, bankPort) {
   return text.replace(/(loadBank:\s*Miscellaneous\.ProfetLoadBank[^\n]*\n(?:[ \t]+[^\n]*\n)*?[ \t]+port:\s*)\d+/, `$1${bankPort}`);
 }
 
+/** Lowest flash load address of an ELF32 (the vector table): 0x08004000 for an app behind OpenBLT, 0x08000000 for
+ *  a plain build (e.g. upstream dingoFW). Falls back to the OpenBLT layout when the file can't be read. */
+export function elfFlashBase(file) {
+  try {
+    const b = fs.readFileSync(file);
+    const phoff = b.readUInt32LE(28), phsize = b.readUInt16LE(42), phnum = b.readUInt16LE(44);
+    let lo = Infinity;
+    for (let i = 0; i < phnum; i++) {
+      const o = phoff + i * phsize, paddr = b.readUInt32LE(o + 12), filesz = b.readUInt32LE(o + 16);
+      if (b.readUInt32LE(o) === 1 && filesz > 0 && paddr >= 0x08000000 && paddr < 0x08100000) lo = Math.min(lo, paddr);
+    }
+    if (lo !== Infinity) return '0x' + lo.toString(16).toUpperCase().padStart(8, '0');
+  } catch { /* fall through */ }
+  return '0x08004000';
+}
+
 /**
  * Render the scene's .resc from renode/templates (car.resc.hbs + `<board>.resc.hbs`) and write it to
  * `<outDir>/<scene>.resc`, plus one `<board>.repl` copy per board with the bank port filled in.
@@ -245,6 +261,7 @@ export function generateResc(scene, firmwarePaths, opt = {}) {
       elf: fwd(elf),
       nv: fwd(path.join(nvDir, `${m.id}.bin`)),
       hub: o.hub, bankPort: o.bankPort, bridgePort: o.bridgePort,
+      vtor: elfFlashBase(path.resolve(m.elf && fs.existsSync(m.elf) ? m.elf : firmwarePaths[m.kind])),
       calWords: calWordLines(m.kind),
       macro: resetMacroName(m.id),
       canConnect: off
@@ -452,8 +469,25 @@ export function createRenode(opts = {}) {
   async function start(sc, firmwarePaths, o = {}) {
     if (proc) await stop();
     scene = sc;
+    // Two Renodes creating CPUs at once race on copying the CPU library into %TEMP% ("translate-arm-m-le.so ...
+    // being used by another process") and the loser dies mid-include: start it again before reporting a failure.
+    for (let attempt = 1; ; attempt++) {
+      try { return await startOnce(sc, firmwarePaths, o); } catch (e) {
+        if (!e.renodeDied || attempt >= 3) {
+          set('error', { error: e.message });
+          onLog(`[sim] start failed: ${e.message}`);
+          throw e;
+        }
+        onLog(`[sim] Renode died while starting (attempt ${attempt}): starting it again`);
+        await stop();
+      }
+    }
+  }
+
+  async function startOnce(sc, firmwarePaths, o) {
     freeRunning = false;
     vtime = 0;   // a new Renode process starts at 0: a stale value froze the UI clock and tripped the bring-up stall watchdog
+    let me = null;
     try {
       const exe = opts.exe || await ensureRenode({ onStatus: (s) => set(s), onLog });
       flags ||= await probeFlags(exe);
@@ -462,11 +496,18 @@ export function createRenode(opts = {}) {
       quantumUs = sceneQuantumUs(sc);
       for (const s of generated.skipped) onLog(`[sim] ${s.id} not simulated: ${s.reason}`);
       set('starting', { exe, resc: generated.path });
-      const args = ['-P', String(monitorPort), ...flags];
+      // Renode rewrites one per-user monitor history file (%APPDATA%/renode/history) after every command: two
+      // Renodes doing it at once crash ("history ... being used by another process"). Each Sim keeps its own.
+      const cfgDir = path.join(CACHE_DIR, 'renode-config');
+      fs.mkdirSync(cfgDir, { recursive: true });
+      const cfg = path.join(cfgDir, `${bridgePort}.config`), hist = path.join(cfgDir, `${bridgePort}.history`);
+      fs.rmSync(hist, { force: true });
+      fs.writeFileSync(cfg, `[general]\nhistory-path = ${hist}\n`);
+      const args = ['-P', String(monitorPort), '--config', cfg, ...flags];
       onLog(`[sim] ${exe} ${args.join(' ')}`);
       // detached = own process group on Windows: a console control event at Renode's quit must not reach (and
       // silently end) the server; the server died this way twice, exit 127, nothing logged
-      const me = (opts.spawnImpl || spawn)(exe, args, { cwd: path.dirname(exe), windowsHide: true, detached: process.platform === 'win32' });
+      me = (opts.spawnImpl || spawn)(exe, args, { cwd: path.dirname(exe), windowsHide: true, detached: process.platform === 'win32' });
       proc = me;
       if (process.platform === 'win32' && !opts.spawnImpl && me.pid) noThrottle(me.pid, onLog);
       me.stdout?.on('data', logLines);
@@ -475,6 +516,7 @@ export function createRenode(opts = {}) {
         onLog(`[sim] Renode exited (${code})`);
         if (proc !== me) return;
         proc = null; monitor?.close(); monitor = null;
+        if (status === 'starting') return;   // start() reports it (and may start again)
         set(code === 0 || status === 'stopped' ? 'stopped' : 'error', code ? { error: `Renode exited with code ${code}` } : {});
       });
       me.on('error', (e) => { onLog(`[sim] spawn error: ${e.message}`); set('error', { error: e.message }); });
@@ -487,8 +529,9 @@ export function createRenode(opts = {}) {
       set(o.paused ? 'paused' : 'running', { error: undefined, pid: proc?.pid });
       return { resc: generated.path, modules: generated.modules, isolated: generated.isolated, skipped: generated.skipped, pid: proc?.pid };
     } catch (e) {
-      set('error', { error: e.message });
-      onLog(`[sim] start failed: ${e.message}`);
+      // a dying Renode closes the monitor before its exit lands: wait for it before deciding
+      if (me && me.exitCode == null && typeof me.once === 'function') await new Promise((r) => { const t = setTimeout(r, 3000); me.once('exit', () => { clearTimeout(t); r(); }); });
+      e.renodeDied = !!me && (me.exitCode != null || proc !== me);
       throw e;
     }
   }
