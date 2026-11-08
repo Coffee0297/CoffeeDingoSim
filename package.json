@@ -1,6 +1,6 @@
 {
   "name": "coffeedingosim",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "Vehicle simulator for dingoPDM / CANBoard: real firmware in Renode, graphical load and stimulus canvas, SLCAN bridge to dingoConfig.",
@@ -11,7 +11,9 @@
     "test": "node --test \"test/**/*.test.js\"",
     "ci": "node server/ci.js"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "serialport": "^12.0.0",
